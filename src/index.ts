@@ -16,9 +16,10 @@ import * as database from "./utils/database"
 import { downloadMedia } from "./utils/downloader"
 import { getConfig } from './config/config'
 import { getMessage } from "./utils/utils"
+import { Download } from "./types"
 
 // Globals
-const downloads = new Map<number, number>()
+const downloads = new Map<string, Download>()
 const botToken = process.env.TG_BOT_TOKEN
 
 // Guard for bot token
@@ -59,9 +60,10 @@ bot.command("/done", async (ctx) => {
 
 bot.command("/downloads", (ctx) => {
   if (downloads.size > 0) {
-    let msg = "Downloads:\n"
-    for (const id of downloads.keys()) {
-      msg += `${id} => ${downloads.get(id)}`
+    let msg = "Downloads ⬇\n\n"
+    for (const download of downloads.values()) {
+      const progress = download.percentage == -1 ? "in progress" : `${download.percentage}%`
+      msg += `${download.name} => ${progress}%\n\n`
     }
     ctx.reply(msg)
   } else {
@@ -87,7 +89,8 @@ bot.on("document", async (ctx) => {
         extension = typeof ext == "string" ? ext : ''
       }
       const filePath = path.join(downloadPath, ctx.message.document.file_name || ctx.message.document.file_id + extension)
-      await downloadMedia(ctx, msg, downloads, filePath)
+      const fileSize = ctx.message.document.file_size
+      await downloadMedia(ctx, msg, downloads, filePath, fileSize)
     } else {
       console.log("Couldn't find the msg with id", orgMsgId, orgChannelUserName);
     }
