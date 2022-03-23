@@ -47,16 +47,7 @@ bot.use((ctx, next) => {
 
 // Configure commands
 bot.start((ctx) => ctx.reply(constants.welcomeMsg))
-bot.help((ctx) => ctx.reply(constants.welcomeMsg))
-
-bot.command("/done", async (ctx) => {
-  if (!R.isNil(client) && !client.disconnected) {
-    await client.disconnect()
-    ctx.reply("Client disconnected.")
-  } else {
-    ctx.reply("Client not logged in.")
-  }
-})
+bot.help((ctx) => ctx.reply(constants.helpMsg))
 
 bot.command("/downloads", (ctx) => {
   if (downloads.size > 0) {

@@ -12,7 +12,7 @@ export const getConfig = (): Config => {
   const apiId = parseInt(process.env.TG_API_ID || '')
   const apiHash = process.env.TG_API_HASH
   
-  const codeInputMode: CodeInputMode = "WEB"
+  const codeInputMode: CodeInputMode = getCodeInputMode()
 
   let codeServerPort = parseInt(process.env.CODE_SEVER_PORT || '9001')
 
@@ -60,5 +60,11 @@ export type Config = {
   apiHash: string,
   codeInputMode: CodeInputMode,
   codeServerPort: number,
-  botToken: string
+  botToken: string,
+}
+
+const getCodeInputMode = (): CodeInputMode => {
+  const mode = process.env.CODE_INPUT_MODE
+  if (mode == "WEB") return "WEB"
+  else return "CLI"
 }
