@@ -3,12 +3,13 @@ import * as fs from "fs"
 import * as path from "path"
 
 // Third party dependencies
-import { Telegraf } from 'telegraf'
+import { Context, Telegraf } from 'telegraf'
 import { TelegramClient } from 'telegram'
 import { StringSession } from 'telegram/sessions'
 import * as R from "ramda"
 import * as mime from "mime-types"
 const input = require("input")
+import ngrok from "ngrok"
 
 // Local modules
 import * as constants from "./config/constants"
@@ -17,15 +18,11 @@ import { downloadMedia } from "./utils/downloader"
 import { getConfig } from './config/config'
 import { getMessage } from "./utils/utils"
 import { Download } from "./types"
+import * as server from "./server"
+import { Server } from "http"
 
 // Globals
 const downloads = new Map<string, Download>()
-const botToken = process.env.TG_BOT_TOKEN
-
-// Guard for bot token
-if (R.isNil(botToken)) {
-  process.exit(201)
-}
 
 // Setup DB
 database.serialize()
@@ -33,11 +30,14 @@ database.serialize()
 //Telegram client session
 const config = getConfig()
 const stringSession = new StringSession('')
-stringSession.setDC(config.dcId, config.ip, config.port)
+
+if (!R.isNil(config.ip) && !R.isNil(config.port) && !R.isNil(config.dcId)) {
+  stringSession.setDC(config.dcId, config.ip, config.port)
+}
 const client = new TelegramClient(stringSession, config.apiId, config.apiHash, { connectionRetries: 5 })
 
 // Telegram bot
-const bot = new Telegraf(botToken)
+const bot = new Telegraf(config.botToken)
 
 // Middleware to log all messages
 bot.use((ctx, next) => {
@@ -71,7 +71,25 @@ bot.command("/downloads", (ctx) => {
   }
 })
 
+bot.command("/connect", async (ctx) => {
+  if (!client.connected) {
+    await startTgClient(ctx)
+  } else {
+    ctx.reply("Client already connected.")
+  }
+})
+
+bot.command("/disconnect", async (ctx) => {
+  if (client.connected) {
+    await client.disconnect()
+    ctx.reply("Client disconnected.")
+  } else {
+    ctx.reply("Client already disconnected.")
+  }
+})
+
 // Configure events
+// TODO: Add support to download direct uploads to bot
 bot.on("document", async (ctx) => {
   const msgId = ctx.message.message_id
   console.log("Fetching media via client", JSON.stringify(ctx.message));
@@ -102,28 +120,78 @@ bot.on("document", async (ctx) => {
 // Start PiBot
 const startPiBot = async () => {
   try {
-    // Launch Bot
     console.log("Starting PiBot!")
     bot.launch()
-    // Start client
+  } catch (error) {
+    console.log("Error in launching bot", error);
+  }
+}
+
+// Start client
+const startTgClient = async (ctx: Context) => {
+  try {
+    ctx.reply("Connecting...")
     await client.start({
-      phoneNumber: config.number,
+      phoneNumber: config.phoneNumber,
       password: async () => config.password,
-      phoneCode: async () => await input.text("Code?"),
-      onError: (err) => console.log(err),
+      phoneCode: () => getTgCode(ctx),
+      onError: (err) => console.log("Client error", err),
     });
     client.session.save()
     console.log('You should now be connected.')
+    ctx.reply("Client is connected.")
   } catch (error) {
-    console.log("Error in client init", error);
+    console.log("Exception occurred while starting client", error)
+    ctx.reply("Couldn't connect the client.")
   }
+}
+
+//TODO: Should we implement TG approach?
+const getTgCode = (ctx: Context): Promise<string> => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      switch (config.codeInputMode) {
+        case "WEB": {
+          const app = server.initServer(config.codeServerPort, async (appServer: Server, code: string) => {
+            await ngrok.kill()
+            await server.stopServer(appServer)
+            resolve(code)
+          })
+          try {
+            await ngrok.kill()
+            const url = await ngrok.connect({
+              addr: config.codeServerPort,
+              onStatusChange: (status) => {
+                console.log("Ngrok tunnel on", config.codeServerPort, status);
+              }
+            })
+            ctx.reply(`Provide the 2FA code using this => ${url}.`)
+          } catch (error) {
+            console.log("Exception in starting ngrok", error);
+            await ngrok.kill()
+            await server.stopServer(app)
+            reject("Error in ngrok")
+          }
+          break
+        }
+        default: {
+          ctx.reply("Provide the 2FA code via cli.")
+          resolve(await input.text("Code ?"))
+        }
+      }
+    } catch (error) {
+      console.log("Error occurred while fetching code using", config.codeInputMode, error);
+      reject(error)
+    }
+  })
 }
 
 // Enable graceful stop
 const stopPiBot = (reason?: string) => {
   return () => {
-    if (!client?.disconnected) client?.disconnect()
+    if (!client.disconnected) client.disconnect()
     bot.stop(reason)
+    ngrok.kill()
     database.instance.close();
     setTimeout(_ => process.exit(), 1000)
   }
@@ -132,5 +200,7 @@ const stopPiBot = (reason?: string) => {
 process.once('SIGINT', stopPiBot('SIGINT'))
 
 process.once('SIGTERM', stopPiBot('SIGTERM'))
+
+process.on("beforeExit", stopPiBot('beforeExit'))
 
 startPiBot()
