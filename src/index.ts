@@ -1,22 +1,16 @@
-// Built in modules
-import * as fs from "fs"
-import * as path from "path"
-
 // Third party dependencies
 import { Context, Telegraf } from 'telegraf'
 import { TelegramClient } from 'telegram'
 import { StringSession } from 'telegram/sessions'
 import * as R from "ramda"
-import * as mime from "mime-types"
 const input = require("input")
 import ngrok from "ngrok"
 
 // Local modules
 import * as constants from "./config/constants"
 import * as database from "./utils/database"
-import { downloadMedia } from "./utils/downloader"
+import { downloadMediaFromMessage } from "./utils/downloader"
 import { getConfig } from './config/config'
-import { getMessage } from "./utils/utils"
 import { Download } from "./types"
 import * as server from "./server"
 import { Server } from "http"
@@ -53,8 +47,12 @@ bot.command("/downloads", (ctx) => {
   if (downloads.size > 0) {
     let msg = "Downloads ⬇\n\n"
     for (const download of downloads.values()) {
-      const progress = download.percentage == -1 ? "in progress" : `${download.percentage}%`
-      msg += `${download.name} => ${progress}%\n\n`
+      if (download.percentage) {
+        const progress = download.percentage == -1 ? "in progress" : `${download.percentage}%`
+        msg += `${download.name} => ${progress}\n\n`
+      } else {
+        msg += `${download.name} => ${download.chunkNumber} parts downloaded\n\n`
+      }
     }
     ctx.reply(msg)
   } else {
@@ -81,31 +79,8 @@ bot.command("/disconnect", async (ctx) => {
 
 // Configure events
 // TODO: Add support to download direct uploads to bot
-bot.on("document", async (ctx) => {
-  const msgId = ctx.message.message_id
-  console.log("Fetching media via client", JSON.stringify(ctx.message));
-  const orgMsgId = ctx.message.forward_from_message_id
-  const orgChannelUserName = R.path(["username"], ctx.message.forward_from_chat) as string | undefined || ctx.message.forward_from?.username
-  if (!R.isNil(orgMsgId) && !R.isNil(orgChannelUserName)) {
-    const msg = await getMessage(client, orgChannelUserName, orgMsgId)
-    if (!R.isNil(msg)) {
-      const channelName = R.path(["title"], ctx.message.forward_from_chat) as string | undefined || ctx.message.forward_from?.first_name || "pi_media"
-      const downloadPath = path.join(__dirname, "downloads", channelName)
-      if (!fs.existsSync(downloadPath)) fs.mkdirSync(downloadPath, { recursive: true })
-      let extension: string = ''
-      if (ctx.message.document.mime_type) {
-        let ext = mime.extension(ctx.message.document.mime_type)
-        extension = typeof ext == "string" ? ext : ''
-      }
-      const filePath = path.join(downloadPath, ctx.message.document.file_name || ctx.message.document.file_id + extension)
-      const fileSize = ctx.message.document.file_size
-      await downloadMedia(ctx, msg, downloads, filePath, fileSize)
-    } else {
-      console.log("Couldn't find the msg with id", orgMsgId, orgChannelUserName);
-    }
-  } else {
-    console.log("Couldn't find msg details", msgId);
-  }
+bot.on(["document", "video"], async (ctx) => {
+  await downloadMediaFromMessage(client, bot, ctx, ctx.message, downloads)
 })
 
 // Start PiBot
