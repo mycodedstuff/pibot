@@ -4,6 +4,7 @@ import { Document, Message, Video } from "telegraf/typings/core/types/typegram";
 import mime from "mime-types"
 import path from "path"
 import fs from "fs"
+import { Config } from "../config/config";
 
 // Get original message using username and msg id
 export const getMessage = async (client: TelegramClient, username: string, msgId: number) => {
@@ -64,8 +65,8 @@ const getMsgOriginName = (message: Message.CommonMessage) => {
 }
 
 // Constructs download path for media, also creates the path in filesystem
-export const mkDownloadPath = (channelName: string, fileName: string, downloadDir?: string) => {
-  const downloadPath = R.isNil(downloadDir) ? path.join(__dirname, "../downloads", channelName) : path.join(downloadDir, channelName)
+export const mkDownloadPath = (config: Config, channelName: string, fileName: string) => {
+  const downloadPath = path.join(config.downloadDir, channelName)
   if (!fs.existsSync(downloadPath)) fs.mkdirSync(downloadPath, { recursive: true })
   return path.join(downloadPath, fileName)
 }

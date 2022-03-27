@@ -10,5 +10,5 @@ Use /disconnect to disconnect the telegram client
 
 Use /downloads to show downloads
 
-Send any document to automatically download it
+Send any document/video to automatically download it
 `

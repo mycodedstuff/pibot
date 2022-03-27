@@ -6,4 +6,5 @@
 202: Invalid telegram server config
 203: Invalid telegram user credentials
 204: Invalid telegram application config
+205: Invalid download directory
 ```

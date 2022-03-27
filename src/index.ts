@@ -8,18 +8,14 @@ import ngrok from "ngrok"
 
 // Local modules
 import * as constants from "./config/constants"
-import * as database from "./utils/database"
 import { downloadMediaFromMessage } from "./utils/downloader"
 import { getConfig } from './config/config'
-import { Download } from "./types"
+import { Download, PiState } from "./types"
 import * as server from "./server"
 import { Server } from "http"
 
 // Globals
 const downloads = new Map<string, Download>()
-
-// Setup DB
-database.serialize()
 
 //Telegram client session
 const config = getConfig()
@@ -32,6 +28,13 @@ const client = new TelegramClient(stringSession, config.apiId, config.apiHash, {
 
 // Telegram bot
 const bot = new Telegraf(config.botToken)
+
+const state: PiState = {
+  client: client,
+  bot: bot,
+  downloads: downloads,
+  config: config
+}
 
 // Middleware to log all messages
 bot.use((ctx, next) => {
@@ -82,7 +85,7 @@ bot.command("/disconnect", async (ctx) => {
 bot.on(["document", "video"], async (ctx) => {
   if (client.connected) {
     try {
-      await downloadMediaFromMessage(client, bot, ctx, ctx.message, downloads)
+      await downloadMediaFromMessage(state, ctx, ctx.message)
     } catch (error) {
       ctx.reply("Exception occurred while downloading this media", {
         reply_to_message_id: ctx.message.message_id
@@ -171,7 +174,6 @@ const stopPiBot = (reason?: string) => {
     if (!client.disconnected) client.disconnect()
     bot.stop(reason)
     ngrok.kill()
-    database.instance.close();
     setTimeout(_ => process.exit(), 1000)
   }
 }

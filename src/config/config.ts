@@ -1,5 +1,7 @@
 import * as R from "ramda"
 import { CodeInputMode } from "../types"
+import path from "path"
+import fs from "fs"
 
 export const getConfig = (): Config => {
   const tgServerIP = process.env.TG_SERVER_IP
@@ -11,7 +13,7 @@ export const getConfig = (): Config => {
 
   const apiId = parseInt(process.env.TG_API_ID || '')
   const apiHash = process.env.TG_API_HASH
-  
+
   const codeInputMode: CodeInputMode = getCodeInputMode()
 
   let codeServerPort = parseInt(process.env.CODE_SEVER_PORT || '9001')
@@ -20,20 +22,28 @@ export const getConfig = (): Config => {
 
   const botToken = process.env.TG_BOT_TOKEN
 
+  let downloadDir = process.env.DOWNLOAD_DIR || path.resolve("../downloads")
+
   // Guard for bot token
   if (R.isNil(botToken)) {
     console.error("Invalid bot token")
     process.exit(201)
   }
-  
+
   if (R.isNil(phoneNumber) || R.isNil(password)) {
     console.error("Invalid client credentials")
     process.exit(202)
   }
 
   if (isNaN(apiId) || R.isNil(apiHash)) {
-    console.log("Invalid telegram api credentials");
+    console.error("Invalid telegram api credentials")
     process.exit(203)
+  }
+  try {
+    downloadDir = fs.realpathSync(downloadDir)
+  } catch (error) {
+    console.error("Invalid download directory", downloadDir, error)
+    process.exit(204)
   }
 
   return {
@@ -46,7 +56,8 @@ export const getConfig = (): Config => {
     apiHash: apiHash,
     codeInputMode: codeInputMode,
     codeServerPort: codeServerPort,
-    botToken: botToken
+    botToken: botToken,
+    downloadDir: downloadDir
   }
 }
 
@@ -61,6 +72,7 @@ export type Config = {
   codeInputMode: CodeInputMode,
   codeServerPort: number,
   botToken: string,
+  downloadDir: string
 }
 
 const getCodeInputMode = (): CodeInputMode => {
