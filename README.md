@@ -14,11 +14,11 @@ Thing is as of writing this document Telegram allows bots to download anything u
 
 ## Prerequisites
 * Create a bot using [@BotFather](https://t.me/botfather) on telegram and get bot token, here is a [guide](https://core.telegram.org/bots#6-botfather) to help you out
-* Goto https://my.telegram.org and get api_id and api_hash
+* Goto https://my.telegram.org and get api_id and api_hash. [Guide for reference](https://core.telegram.org/api/obtaining_api_id)
 * Setup Node v12 on the system you will use it on (I recommend using [nvm](https://github.com/nvm-sh/nvm))
 
 ## Steps to configure PiBot
-I would recommend using the test credentials first to test things out. Once things are working then you can use you're actual credentials. Jump to [How to test it](./README.md#how-to-test-it) section below
+I would recommend using the test credentials first to test things out. Once things are working then you can use you're actual credentials. Jump to [How to test it](#how-to-test-it) section below
 ```shell
 # Use git to clone the project
 git clone https://github.com/mycodedstuff/pibot.git
@@ -74,7 +74,7 @@ npm start
       2. WEB: The bot will use start a web server on port configured via `CODE_SERVER_PORT` (default is 9001) and use [ngrok](https://ngrok.com/) to create a temporarily public link and the bot will send it to you.
       
           You need to send the code to the provided url. I used [HTTP Shortcuts](https://http-shortcuts.rmy.ch/) app on Android to take url and code as input and automatically initiate a HTTP POST request. You can import the one I've made [http_shortcuts.zip](./assets/http_shortcut.zip)
-4. Once client is connected bot will send a message, after this you can begin sending any document/video to the bot too automatically download it.
+4. Once client is connected bot will send a confirmation message, after this you can begin sending any document/video to the bot too automatically download it.
 
 
 ## How do I use it?
@@ -91,6 +91,6 @@ As this project is relatively small you can easily go through it to validate it.
 ## How to test it
 Telegram allows login via test credentials for client login, follow this guide https://core.telegram.org/api/auth#test-accounts
 
-Note: In order for this to work you will have to change the telegram data center configuration to the test data center. The values is available on the same page from where you got api_id and api_hash.
+Note: In order for this to work you will have to change the telegram data center configuration to the test data center. The values are available on the same page from where you got api_id and api_hash.
 
 Also you won't be able to download things when using the test credentials as the test servers won't have access to production data.
