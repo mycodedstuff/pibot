@@ -80,7 +80,20 @@ bot.command("/disconnect", async (ctx) => {
 // Configure events
 // TODO: Add support to download direct uploads to bot
 bot.on(["document", "video"], async (ctx) => {
-  await downloadMediaFromMessage(client, bot, ctx, ctx.message, downloads)
+  if (client.connected) {
+    try {
+      await downloadMediaFromMessage(client, bot, ctx, ctx.message, downloads)
+    } catch (error) {
+      ctx.reply("Exception occurred while downloading this media", {
+        reply_to_message_id: ctx.message.message_id
+      })
+      console.error("Exception occurred while downloading media", ctx.message.message_id, error);
+    }
+  } else {
+    ctx.reply("Couldn't start downloading as client isn't connected.", {
+      reply_to_message_id: ctx.message.message_id
+    })
+  }
 })
 
 // Start PiBot
