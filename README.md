@@ -1,4 +1,10 @@
 # <image src="./assets/logo.jpg" width=24> PiBot
+
+[![MPL-2.0 license](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](https://github.com/mycodedstuff/mExport/blob/master/LICENSE)
+![Version](https://img.shields.io/badge/version-v0.0.1-blue)
+[![CodeQL](https://github.com/mycodedstuff/pibot/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/mycodedstuff/pibot/actions/workflows/codeql-analysis.yml)
+![Node Version](https://img.shields.io/badge/Node-v12.22.10-brightgreen)
+![Last Commit](https://img.shields.io/github/last-commit/mycodedstuff/pibot)
 ### This project starts a telegram bot which can be used to download any telegram media sent/forwarded to it.
 
 ## What can it do?
