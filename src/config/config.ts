@@ -22,7 +22,7 @@ export const getConfig = (): Config => {
 
   const botToken = process.env.TG_BOT_TOKEN
 
-  let downloadDir = process.env.DOWNLOAD_DIR || path.resolve("../downloads")
+  let downloadDir = process.env.DOWNLOAD_DIR
 
   // Guard for bot token
   if (R.isNil(botToken)) {
@@ -40,7 +40,12 @@ export const getConfig = (): Config => {
     process.exit(203)
   }
   try {
-    downloadDir = fs.realpathSync(downloadDir)
+    if (downloadDir) {
+      downloadDir = fs.realpathSync(downloadDir)
+    } else {
+      downloadDir = path.resolve("../downloads")
+      if (!fs.existsSync(downloadDir)) fs.mkdirSync(downloadDir)
+    }
   } catch (error) {
     console.error("Invalid download directory", downloadDir, error)
     process.exit(204)
