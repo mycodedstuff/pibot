@@ -24,6 +24,8 @@ export const getConfig = (): Config => {
 
   let downloadDir = process.env.DOWNLOAD_DIR
 
+  const maxDownloadsInList = 5
+
   // Guard for bot token
   if (R.isNil(botToken)) {
     console.error("Invalid bot token")
@@ -62,7 +64,8 @@ export const getConfig = (): Config => {
     codeInputMode: codeInputMode,
     codeServerPort: codeServerPort,
     botToken: botToken,
-    downloadDir: downloadDir
+    downloadDir: downloadDir,
+    maxDownloadsInList: maxDownloadsInList
   }
 }
 
@@ -77,7 +80,8 @@ export type Config = {
   codeInputMode: CodeInputMode,
   codeServerPort: number,
   botToken: string,
-  downloadDir: string
+  downloadDir: string,
+  maxDownloadsInList: number
 }
 
 const getCodeInputMode = (): CodeInputMode => {

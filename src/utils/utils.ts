@@ -5,6 +5,10 @@ import mime from "mime-types"
 import path from "path"
 import fs from "fs"
 import { Config } from "../config/config";
+import { PiState } from "../types";
+import bytes from "bytes";
+import { Markup } from "telegraf";
+import * as constants from "../config/constants"
 
 // Get original message using username and msg id
 export const getMessage = async (client: TelegramClient, username: string, msgId: number) => {
@@ -71,6 +75,7 @@ export const mkDownloadPath = (config: Config, channelName: string, fileName: st
   return path.join(downloadPath, fileName)
 }
 
+// Search for a message within this given username channel
 export const findMediaMessage = async (client: TelegramClient, messageContent: string, userName: string, filter: Api.TypeMessagesFilter) => {
   const msgs = await client.getMessages(userName, {
     search: messageContent,
@@ -78,4 +83,52 @@ export const findMediaMessage = async (client: TelegramClient, messageContent: s
     limit: 1
   })
   return !R.isNil(msgs) && Array.isArray(msgs) ? msgs[0] : null
+}
+
+
+export const constructDownloadList = (state: PiState, currentPageNo: number) => {
+  let msg = "📥  Downloads\n\n"
+  const nextDownloadList = R.take(state.config.maxDownloadsInList, R.drop(state.config.maxDownloadsInList * (currentPageNo - 1), Array.from(state.downloads.values())))
+  for (const download of nextDownloadList) {
+    if (download.percentage) {
+      const progress = download.percentage == -1 ? "starting" : `${download.percentage}%`
+      const prefix = download.percentage === 100 ? "🟢" : "🟠"
+      msg += `${prefix}  ${download.name}\n   Progress: ${progress}\n\n`
+    } else {
+      msg += `${download.name} => ${bytes(download.downloadedTillNow)} downloaded\n\n`
+    }
+  }
+  return msg
+}
+
+export const buttons = {
+  refreshDownloadBtn: Markup.button.callback("Refresh", constants.refreshDownloads),
+  paginatedBtn: (pageNo: number, current: number) => Markup.button.callback(pageNo == current ? "🔘" : pageNo.toString(), constants.pageNoPrefix + pageNo),
+  previousPage: (previousPage: number) => Markup.button.callback("<<", constants.pageNoPrefix + previousPage),
+  nextPage: (nextPage: number) => Markup.button.callback(">>", constants.pageNoPrefix + nextPage)
+}
+
+export const constructPageButtons = (state: PiState, currentPage: number) => {
+  const visiblePages = 5
+  const totalPages = Math.ceil(state.downloads.size / state.config.maxDownloadsInList)
+  const totalNumericPages = totalPages <= visiblePages ? visiblePages : visiblePages - 2
+  const pageWindow = Math.floor((currentPage - 1) / totalNumericPages) + 1
+  const totalPageWindows = Math.floor(totalPages / totalNumericPages) + 1
+  const pageButtons = []
+  let startPage = -1
+  if (totalPages > 1) {
+    if (pageWindow == 1) {
+      startPage = 1
+    } else if (pageWindow == totalPageWindows) {
+      startPage = totalPages - totalNumericPages + 1
+    } else {
+      startPage = (pageWindow - 1) * totalNumericPages + 1
+    }
+    if (pageWindow <= 1) pageButtons.push(buttons.previousPage(startPage - 1))
+    for (let pageNo = startPage; pageNo <= startPage + totalNumericPages - 1 && pageNo <= totalPages; pageNo++) {
+      pageButtons.push(buttons.paginatedBtn(pageNo, currentPage))
+    }
+    if (startPage + totalNumericPages > totalPages) pageButtons.push(buttons.nextPage(startPage + totalNumericPages))
+  }
+  return pageButtons
 }

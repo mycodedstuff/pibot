@@ -1,5 +1,5 @@
 // Third party dependencies
-import { Context, Telegraf } from 'telegraf'
+import { Context, Telegraf, Markup, Types } from 'telegraf'
 import { TelegramClient } from 'telegram'
 import { StringSession } from 'telegram/sessions'
 import * as R from "ramda"
@@ -13,18 +13,20 @@ import { getConfig } from './config/config'
 import { Download, PiState } from "./types"
 import * as server from "./server"
 import { Server } from "http"
+import { buttons, constructDownloadList, constructPageButtons } from './utils/utils'
 
 // Globals
 const downloads = new Map<string, Download>()
 
 //Telegram client session
 const config = getConfig()
-const stringSession = new StringSession('')
+const telegramSession = new StringSession('')
 
 if (!R.isNil(config.ip) && !R.isNil(config.port) && !R.isNil(config.dcId)) {
-  stringSession.setDC(config.dcId, config.ip, config.port)
+  telegramSession.setDC(config.dcId, config.ip, config.port)
 }
-const client = new TelegramClient(stringSession, config.apiId, config.apiHash, { connectionRetries: 5 })
+
+const client = new TelegramClient(telegramSession, config.apiId, config.apiHash, { connectionRetries: 5 })
 
 // Telegram bot
 const bot = new Telegraf(config.botToken)
@@ -38,7 +40,8 @@ const state: PiState = {
 
 // Middleware to log all messages
 bot.use((ctx, next) => {
-  console.log(JSON.stringify(ctx.message))
+  if (ctx.message)
+    console.log(JSON.stringify(ctx.message))
   next()
 })
 
@@ -48,16 +51,10 @@ bot.help((ctx) => ctx.reply(constants.helpMsg))
 
 bot.command("/downloads", (ctx) => {
   if (downloads.size > 0) {
-    let msg = "Downloads ⬇\n\n"
-    for (const download of downloads.values()) {
-      if (download.percentage) {
-        const progress = download.percentage == -1 ? "in progress" : `${download.percentage}%`
-        msg += `${download.name} => ${progress}\n\n`
-      } else {
-        msg += `${download.name} => ${download.chunkNumber} parts downloaded\n\n`
-      }
-    }
-    ctx.reply(msg)
+    const pageButtons = constructPageButtons(state, 1)
+    ctx.reply(constructDownloadList(state, 1), {
+      reply_markup: Markup.inlineKeyboard([[buttons.refreshDownloadBtn], pageButtons]).reply_markup
+    })
   } else {
     ctx.reply("No downloads in progress.")
   }
@@ -77,6 +74,27 @@ bot.command("/disconnect", async (ctx) => {
     ctx.reply("Client disconnected.")
   } else {
     ctx.reply("Client already disconnected.")
+  }
+})
+
+bot.on("callback_query", (ctx) => {
+  const callbackQuery = R.path(["data"], ctx.update.callback_query) as string | undefined
+  console.log("Callback query", callbackQuery);
+  if (callbackQuery == constants.refreshDownloads) {
+    const pageButtons = constructPageButtons(state, 1)
+    ctx.editMessageText(constructDownloadList(state, 1), {
+      reply_markup: Markup.inlineKeyboard([[buttons.refreshDownloadBtn], pageButtons]).reply_markup
+    })
+  } else if (!R.isNil(callbackQuery) && R.startsWith(constants.pageNoPrefix, callbackQuery)) {
+    const currentPageNo = parseInt(R.split("_", callbackQuery)[2])
+    const pageButtons = constructPageButtons(state, currentPageNo)
+    const msg = constructDownloadList(state, currentPageNo)
+    if (ctx.message !== msg) {
+      console.log("Message =>", ctx.message);
+      ctx.editMessageText(msg, {
+        reply_markup: Markup.inlineKeyboard([[buttons.refreshDownloadBtn], pageButtons]).reply_markup
+      })
+    }
   }
 })
 
@@ -113,6 +131,7 @@ const startPiBot = async () => {
 const startTgClient = async (ctx: Context) => {
   try {
     ctx.reply("Connecting...")
+    await telegramSession.load()
     await client.start({
       phoneNumber: config.phoneNumber,
       password: async () => config.password,
@@ -147,7 +166,9 @@ const getTgCode = (ctx: Context): Promise<string> => {
                 console.log("Ngrok tunnel on", config.codeServerPort, status);
               }
             })
-            ctx.reply(`Provide the 2FA code using this => ${url}.`)
+            ctx.reply(`Provide the 2FA code using this => ${url}.`, {
+              disable_web_page_preview: true
+            })
           } catch (error) {
             console.log("Exception in starting ngrok", error);
             await ngrok.kill()

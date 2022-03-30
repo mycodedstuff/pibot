@@ -6,7 +6,7 @@ import { Config } from "./config/config"
 export type Download = {
   percentage?: number,
   name: string,
-  chunkNumber: number
+  downloadedTillNow: number
 }
 
 export type CodeInputMode = "CLI" | "WEB" | "TG"

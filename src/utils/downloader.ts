@@ -51,19 +51,15 @@ const downloadMedia = async (ctx: Context, msg: Api.Message, downloads: Map<stri
     ctx.reply("Downloading...", {
       reply_to_message_id: ctx.message?.message_id
     })
-    const chunkSize = fileSize ? getAppropriatedPartSize(fileSize) : undefined
-    const fileSizeInKb = fileSize ? fileSize / 1024 : undefined
-    const totalChunks = chunkSize && fileSizeInKb ? fileSizeInKb / chunkSize : undefined
     const fileName = path.basename(filePath)
-    downloads.set(fileName, { name: fileName, percentage: -1, chunkNumber: 0 })
+    downloads.set(fileName, { name: fileName, percentage: -1, downloadedTillNow: 0 })
     const buffer = await msg.downloadMedia({
-      workers: 2,
       progressCallback: (progress) => {
-        if (totalChunks) {
-          const percentage = parseInt(((progress / totalChunks) * 100).toFixed(0))
-          downloads.set(fileName, { name: fileName, percentage, chunkNumber: progress })
+        if (fileSize) {
+          const percentage = parseInt(((progress / fileSize) * 100).toFixed(2))
+          downloads.set(fileName, { name: fileName, percentage, downloadedTillNow: progress })
         } else {
-          downloads.set(fileName, { name: fileName, chunkNumber: progress })
+          downloads.set(fileName, { name: fileName, downloadedTillNow: progress })
         }
       }
     })
