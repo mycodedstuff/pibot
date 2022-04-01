@@ -45,7 +45,7 @@ export const getConfig = (): Config => {
     if (downloadDir) {
       downloadDir = fs.realpathSync(downloadDir)
     } else {
-      downloadDir = path.resolve("../downloads")
+      downloadDir = path.resolve("./downloads")
       if (!fs.existsSync(downloadDir)) fs.mkdirSync(downloadDir)
     }
   } catch (error) {

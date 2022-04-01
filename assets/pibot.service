@@ -1,0 +1,13 @@
+[Unit]
+Description=PiBot
+
+[Service]
+Type=simple
+WorkingDirectory=
+EnvironmentFile=
+ExecStart=node index.js
+ExecStop=/bin/kill -SIGINT $MAINPID
+
+[Install]
+WantedBy=multi-user.target
+Alias=pibot.service

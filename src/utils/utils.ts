@@ -9,6 +9,7 @@ import { PiState } from "../types";
 import bytes from "bytes";
 import { Markup } from "telegraf";
 import * as constants from "../config/constants"
+import sanitize from "sanitize-filename"
 
 // Get original message using username and msg id
 export const getMessage = async (client: TelegramClient, username: string, msgId: number) => {
@@ -70,7 +71,7 @@ const getMsgOriginName = (message: Message.CommonMessage) => {
 
 // Constructs download path for media, also creates the path in filesystem
 export const mkDownloadPath = (config: Config, channelName: string, fileName: string) => {
-  const downloadPath = path.join(config.downloadDir, channelName)
+  const downloadPath = path.normalize(path.join(config.downloadDir, sanitize(channelName, { replacement: ' ' }).replace(/\s{2,}/, ' ')))
   if (!fs.existsSync(downloadPath)) fs.mkdirSync(downloadPath, { recursive: true })
   return path.join(downloadPath, fileName)
 }
@@ -84,7 +85,6 @@ export const findMediaMessage = async (client: TelegramClient, messageContent: s
   })
   return !R.isNil(msgs) && Array.isArray(msgs) ? msgs[0] : null
 }
-
 
 export const constructDownloadList = (state: PiState, currentPageNo: number) => {
   let msg = "📥  Downloads\n\n"
