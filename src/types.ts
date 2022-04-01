@@ -11,9 +11,14 @@ export type Download = {
 
 export type CodeInputMode = "CLI" | "WEB" | "TG"
 
+export type PendingDownload = (category: string) => Promise<void>
+
 export type PiState = {
   config: Config,
   client: TelegramClient,
   bot: Telegraf,
-  downloads: Map<string, Download>
+  downloads: Map<string, Download>,
+  pendingDownloads: Map<string, PendingDownload>
 }
+
+export type CallbackType = 'REFRESH_DOwNLOAD' | 'NAVIGATE_PAGE' | 'CATEGORY_SELECTED'

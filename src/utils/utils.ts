@@ -5,7 +5,7 @@ import mime from "mime-types"
 import path from "path"
 import fs from "fs"
 import { Config } from "../config/config";
-import { PiState } from "../types";
+import { CallbackType, PiState } from "../types";
 import bytes from "bytes";
 import { Markup } from "telegraf";
 import * as constants from "../config/constants"
@@ -70,8 +70,8 @@ const getMsgOriginName = (message: Message.CommonMessage) => {
 }
 
 // Constructs download path for media, also creates the path in filesystem
-export const mkDownloadPath = (config: Config, channelName: string, fileName: string) => {
-  const downloadPath = path.normalize(path.join(config.downloadDir, sanitize(channelName, { replacement: ' ' }).replace(/\s{2,}/, ' ')))
+export const mkDownloadPath = (config: Config, category: string, channelName: string, fileName: string) => {
+  const downloadPath = path.normalize(path.join(config.downloadDir, category, sanitize(channelName, { replacement: ' ' }).replace(/\s{2,}/, ' ')))
   if (!fs.existsSync(downloadPath)) fs.mkdirSync(downloadPath, { recursive: true })
   return path.join(downloadPath, fileName)
 }
@@ -105,7 +105,8 @@ export const buttons = {
   refreshDownloadBtn: Markup.button.callback("Refresh", constants.refreshDownloads),
   paginatedBtn: (pageNo: number, current: number) => Markup.button.callback(pageNo == current ? "🔘" : pageNo.toString(), constants.pageNoPrefix + pageNo),
   previousPage: (previousPage: number) => Markup.button.callback("<<", constants.pageNoPrefix + previousPage),
-  nextPage: (nextPage: number) => Markup.button.callback(">>", constants.pageNoPrefix + nextPage)
+  nextPage: (nextPage: number) => Markup.button.callback(">>", constants.pageNoPrefix + nextPage),
+  category: (categoryName: string, identifier: string) => Markup.button.callback(categoryName, constants.categoryPrefix + categoryName + '_' + identifier)
 }
 
 export const constructPageButtons = (state: PiState, currentPage: number) => {
@@ -131,4 +132,23 @@ export const constructPageButtons = (state: PiState, currentPage: number) => {
     if (startPage + totalNumericPages > totalPages) pageButtons.push(buttons.nextPage(startPage + totalNumericPages))
   }
   return pageButtons
+}
+
+export const getCallbackTypeFromQuery = (callbackQuery: string): CallbackType | null => {
+  if (!R.isNil(callbackQuery)) {
+    if (callbackQuery == constants.refreshDownloads) {
+      return "REFRESH_DOwNLOAD"
+    } else if (R.startsWith(constants.pageNoPrefix, callbackQuery)) {
+      return "NAVIGATE_PAGE"
+    } else if (R.startsWith(constants.categoryPrefix, callbackQuery)) {
+      return "CATEGORY_SELECTED"
+    }
+  }
+  return null
+}
+
+export const mkMediaCategoryButtons = (mediaCategories: string[], uuid: string) => {
+  return mediaCategories.map(categoryName => {
+    return buttons.category(categoryName, uuid)
+  })
 }

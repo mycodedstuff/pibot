@@ -17,3 +17,7 @@ Send any document/video to automatically download it
 export const refreshDownloads = "refresh_downloads"
 
 export const pageNoPrefix = "page_no_"
+
+export const categoryPrefix = "category_"
+
+export const defaultMediaCategory = "Telegram"

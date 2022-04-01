@@ -13,7 +13,7 @@ import { getConfig } from './config/config'
 import { Download, PiState } from "./types"
 import * as server from "./server"
 import { Server } from "http"
-import { buttons, constructDownloadList, constructPageButtons } from './utils/utils'
+import { buttons, constructDownloadList, constructPageButtons, getCallbackTypeFromQuery } from './utils/utils'
 
 // Globals
 const downloads = new Map<string, Download>()
@@ -35,7 +35,8 @@ const state: PiState = {
   client: client,
   bot: bot,
   downloads: downloads,
-  config: config
+  config: config,
+  pendingDownloads: new Map()
 }
 
 // Middleware to log all messages
@@ -77,15 +78,17 @@ bot.command("/disconnect", async (ctx) => {
   }
 })
 
-bot.on("callback_query", (ctx) => {
+bot.on("callback_query", async (ctx) => {
   const callbackQuery = R.path(["data"], ctx.update.callback_query) as string | undefined
-  console.log("Callback query", callbackQuery);
-  if (callbackQuery == constants.refreshDownloads) {
+  if (R.isNil(callbackQuery)) return
+  const callbackType = getCallbackTypeFromQuery(callbackQuery)
+  console.log("Callback query", callbackQuery, callbackType);
+  if (callbackType == "REFRESH_DOwNLOAD") {
     const pageButtons = constructPageButtons(state, 1)
     ctx.editMessageText(constructDownloadList(state, 1), {
       reply_markup: Markup.inlineKeyboard([[buttons.refreshDownloadBtn], pageButtons]).reply_markup
     })
-  } else if (!R.isNil(callbackQuery) && R.startsWith(constants.pageNoPrefix, callbackQuery)) {
+  } else if (callbackType == "NAVIGATE_PAGE") {
     const currentPageNo = parseInt(R.split("_", callbackQuery)[2])
     const pageButtons = constructPageButtons(state, currentPageNo)
     const msg = constructDownloadList(state, currentPageNo)
@@ -94,6 +97,18 @@ bot.on("callback_query", (ctx) => {
       ctx.editMessageText(msg, {
         reply_markup: Markup.inlineKeyboard([[buttons.refreshDownloadBtn], pageButtons]).reply_markup
       })
+    }
+  } else if (callbackType == "CATEGORY_SELECTED") {
+    const splitArr = R.split("_", callbackQuery)
+    const category = splitArr[1]
+    const identifier = splitArr[2]
+    const work = state.pendingDownloads.get(identifier)
+    ctx.editMessageText(`You selected category ${category}.`)
+    if (!R.isNil(work)) {
+      console.log("Starting pending download", identifier)
+      await (category === "Others" ? work(constants.defaultMediaCategory) : work(category))
+    } else {
+      console.warn("Couldn't find the pending download", identifier);
     }
   }
 })
@@ -121,7 +136,7 @@ bot.on(["document", "video"], async (ctx) => {
 const startPiBot = async () => {
   try {
     console.log("Starting PiBot!")
-    bot.launch()
+    await bot.launch()
   } catch (error) {
     console.log("Error in launching bot", error);
   }

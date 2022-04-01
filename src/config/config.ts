@@ -24,6 +24,12 @@ export const getConfig = (): Config => {
 
   let downloadDir = process.env.DOWNLOAD_DIR
 
+  const enabledMediaCategories = process.env.ENABLE_MEDIA_CATEGORIES || "false"
+
+  const mediaCategories = ["Anime", "Movies", "Series", "Others"] //TODO: Add category wise path
+
+  const categorySelectionTimeout = 10000
+
   const maxDownloadsInList = 5
 
   // Guard for bot token
@@ -65,7 +71,10 @@ export const getConfig = (): Config => {
     codeServerPort: codeServerPort,
     botToken: botToken,
     downloadDir: downloadDir,
-    maxDownloadsInList: maxDownloadsInList
+    maxDownloadsInList: maxDownloadsInList,
+    enabledMediaCategories: enabledMediaCategories.toLowerCase() === "true",
+    mediaCategories: mediaCategories,
+    categorySelectionTimeout: categorySelectionTimeout
   }
 }
 
@@ -81,7 +90,10 @@ export type Config = {
   codeServerPort: number,
   botToken: string,
   downloadDir: string,
-  maxDownloadsInList: number
+  maxDownloadsInList: number,
+  enabledMediaCategories: boolean
+  mediaCategories: string[],
+  categorySelectionTimeout: number
 }
 
 const getCodeInputMode = (): CodeInputMode => {
