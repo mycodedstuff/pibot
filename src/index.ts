@@ -41,6 +41,14 @@ const state: PiState = {
 
 // Middleware to log all messages
 bot.use((ctx, next) => {
+  if (ctx.from && !ctx.from.is_bot && (config.whitelistedUsers.findIndex((identity => ctx.from?.username === identity || ctx.from?.id === parseInt(identity))) != -1)) {
+    next()
+  } else {
+    console.warn("Blocking event from", JSON.stringify(ctx.update))
+  }
+})
+
+bot.use((ctx, next) => {
   if (ctx.message)
     console.log(JSON.stringify(ctx.message))
   next()

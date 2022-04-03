@@ -32,6 +32,8 @@ export const getConfig = (): Config => {
 
   const maxDownloadsInList = 5
 
+  const whitelistedUsers = (process.env.WHITELISTED_USERS || '').split(',') // Username or userId
+
   // Guard for bot token
   if (R.isNil(botToken)) {
     console.error("Invalid bot token")
@@ -74,7 +76,8 @@ export const getConfig = (): Config => {
     maxDownloadsInList: maxDownloadsInList,
     enabledMediaCategories: enabledMediaCategories.toLowerCase() === "true",
     mediaCategories: mediaCategories,
-    categorySelectionTimeout: categorySelectionTimeout
+    categorySelectionTimeout: categorySelectionTimeout,
+    whitelistedUsers: whitelistedUsers
   }
 }
 
@@ -93,7 +96,8 @@ export type Config = {
   maxDownloadsInList: number,
   enabledMediaCategories: boolean
   mediaCategories: string[],
-  categorySelectionTimeout: number
+  categorySelectionTimeout: number,
+  whitelistedUsers: string[]
 }
 
 const getCodeInputMode = (): CodeInputMode => {
