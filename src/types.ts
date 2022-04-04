@@ -9,7 +9,7 @@ export type Download = {
   downloadedTillNow: number
 }
 
-export type CodeInputMode = "CLI" | "WEB" | "TG"
+export type CodeInputMode = "CLI" | "WEB"
 
 export type PendingDownload = (category: string) => Promise<void>
 

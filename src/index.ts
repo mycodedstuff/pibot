@@ -170,7 +170,7 @@ const startTgClient = async (ctx: Context) => {
   }
 }
 
-//TODO: Should we implement TG approach?
+
 const getTgCode = (ctx: Context): Promise<string> => {
   return new Promise(async (resolve, reject) => {
     try {

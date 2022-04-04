@@ -34,6 +34,8 @@ export const getConfig = (): Config => {
 
   const whitelistedUsers = (process.env.WHITELISTED_USERS || '').split(',') // Username or userId
 
+  const categoryMessageTime = 2000 //Time in milliseconds till which the msg will stay in chat
+
   // Guard for bot token
   if (R.isNil(botToken)) {
     console.error("Invalid bot token")
@@ -77,7 +79,8 @@ export const getConfig = (): Config => {
     enabledMediaCategories: enabledMediaCategories.toLowerCase() === "true",
     mediaCategories: mediaCategories,
     categorySelectionTimeout: categorySelectionTimeout,
-    whitelistedUsers: whitelistedUsers
+    whitelistedUsers: whitelistedUsers,
+    categoryMessageTime: categoryMessageTime
   }
 }
 
@@ -97,7 +100,8 @@ export type Config = {
   enabledMediaCategories: boolean
   mediaCategories: string[],
   categorySelectionTimeout: number,
-  whitelistedUsers: string[]
+  whitelistedUsers: string[],
+  categoryMessageTime: number
 }
 
 const getCodeInputMode = (): CodeInputMode => {

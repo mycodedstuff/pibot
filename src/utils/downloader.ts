@@ -38,8 +38,10 @@ export const downloadMediaFromMessage = async (state: PiState, ctx: Context, mes
           }
           if (identifier) {
             setTimeout(_ => {
-              if (categorySelectedMsg && ctx.chat?.id)
-                state.bot.telegram.deleteMessage(ctx.chat.id, categorySelectedMsg.message_id)
+              setTimeout(_ => {
+                if (categorySelectedMsg && ctx.chat?.id)
+                  state.bot.telegram.deleteMessage(ctx.chat.id, categorySelectedMsg.message_id)
+              }, state.config.categoryMessageTime)
               return mediaDownloader(constants.defaultMediaCategory, true)
             }, state.config.categorySelectionTimeout)
           }
