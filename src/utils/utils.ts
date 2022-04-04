@@ -142,6 +142,8 @@ export const getCallbackTypeFromQuery = (callbackQuery: string): CallbackType | 
       return "NAVIGATE_PAGE"
     } else if (R.startsWith(constants.categoryPrefix, callbackQuery)) {
       return "CATEGORY_SELECTED"
+    } else if (R.startsWith(constants.selectCategoryPrefix, callbackQuery)) {
+      return "SET_CATEGORY"
     }
   }
   return null

@@ -36,7 +36,8 @@ const state: PiState = {
   bot: bot,
   downloads: downloads,
   config: config,
-  pendingDownloads: new Map()
+  pendingDownloads: new Map(),
+  selectedCategory: null
 }
 
 // Middleware to log all messages
@@ -55,10 +56,10 @@ bot.use((ctx, next) => {
 })
 
 // Configure commands
-bot.start((ctx) => ctx.reply(constants.welcomeMsg))
-bot.help((ctx) => ctx.reply(constants.helpMsg))
+bot.start(ctx => ctx.reply(constants.welcomeMsg))
+bot.help(ctx => ctx.reply(constants.helpMsg))
 
-bot.command("/downloads", (ctx) => {
+bot.command("/downloads", ctx => {
   if (downloads.size > 0) {
     const pageButtons = constructPageButtons(state, 1)
     ctx.reply(constructDownloadList(state, 1), {
@@ -69,7 +70,7 @@ bot.command("/downloads", (ctx) => {
   }
 })
 
-bot.command("/connect", async (ctx) => {
+bot.command("/connect", async ctx => {
   if (!client.connected) {
     await startTgClient(ctx)
   } else {
@@ -77,12 +78,34 @@ bot.command("/connect", async (ctx) => {
   }
 })
 
-bot.command("/disconnect", async (ctx) => {
+bot.command("/disconnect", async ctx => {
   if (client.connected) {
     await client.disconnect()
     ctx.reply("Client disconnected.")
   } else {
     ctx.reply("Client already disconnected.")
+  }
+})
+
+bot.command("/setcategory", ctx => {
+  if (config.enabledMediaCategories) {
+    const options = state.config.mediaCategories.map(txt => Markup.button.callback(txt, constants.selectCategoryPrefix + txt))
+    ctx.reply("Choose a category.", {
+      reply_markup: Markup.inlineKeyboard(options, {
+        columns: 2
+      }).reply_markup
+    })
+  } else {
+    ctx.reply("Media categories feature isn't enabled.")
+  }
+})
+
+bot.command("/clearcategory", ctx => {
+  if (config.enabledMediaCategories) {
+    state.selectedCategory = null
+    ctx.reply("Cleared selected category.")
+  } else {
+    ctx.reply("Media categories feature isn't enabled.")
   }
 })
 
@@ -118,6 +141,12 @@ bot.on("callback_query", async (ctx) => {
     } else {
       console.warn("Couldn't find the pending download", identifier);
     }
+  } else if (callbackType == "SET_CATEGORY") {
+    const selectedCategory = R.split("_", callbackQuery)[2]
+    state.selectedCategory = selectedCategory
+    ctx.editMessageText(`I've set category *${selectedCategory}* for all incoming medias.`, {
+      parse_mode: 'MarkdownV2'
+    })
   }
 })
 

@@ -18,7 +18,8 @@ export type PiState = {
   client: TelegramClient,
   bot: Telegraf,
   downloads: Map<string, Download>,
-  pendingDownloads: Map<string, PendingDownload>
+  pendingDownloads: Map<string, PendingDownload>,
+  selectedCategory: string | null 
 }
 
-export type CallbackType = 'REFRESH_DOwNLOAD' | 'NAVIGATE_PAGE' | 'CATEGORY_SELECTED'
+export type CallbackType = 'REFRESH_DOwNLOAD' | 'NAVIGATE_PAGE' | 'CATEGORY_SELECTED' | 'SET_CATEGORY'

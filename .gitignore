@@ -4,3 +4,4 @@ session_name/
 build/*
 .DS_Store
 package-lock.json
+.vscode

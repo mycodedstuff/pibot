@@ -47,7 +47,7 @@ export const downloadMediaFromMessage = async (state: PiState, ctx: Context, mes
           }
           return mediaDownloader
         }
-        if (state.config.enabledMediaCategories) {
+        if (state.config.enabledMediaCategories && R.isNil(state.selectedCategory)) {
           const identifier = uuid.v4()
           console.log("Adding media to pending downloads", identifier)
           const chooseCategoryMsg = await ctx.reply("Choose a category for this media.", {
@@ -57,7 +57,7 @@ export const downloadMediaFromMessage = async (state: PiState, ctx: Context, mes
           state.pendingDownloads.set(identifier, work(tgMsg, chooseCategoryMsg, identifier))
 
         } else {
-          await work(tgMsg)('')
+          await work(tgMsg)(state.selectedCategory ?? '')
         }
       } else {
         console.log("Couldn't find the msg with id", msgMetadata.orgMsgId, msgMetadata.orgMsgUserName);
