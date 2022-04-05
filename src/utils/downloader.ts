@@ -102,7 +102,6 @@ const downloadMedia = async (ctx: Context, msg: Api.Message, downloads: Map<stri
         reply_to_message_id: ctx.message?.message_id
       })
       console.log(`Download completed, file saved at path ${filePath}`, JSON.stringify(msg));
-      database.instance.run(`insert into downloads values(${msg.id})`)
     } else {
         console.error("Buffer is empty", JSON.stringify(msg))
       ctx.reply("Couldn't download media.", {
