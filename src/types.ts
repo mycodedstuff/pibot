@@ -19,7 +19,7 @@ export type PiState = {
   bot: Telegraf,
   downloads: Map<string, Download>,
   pendingDownloads: Map<string, PendingDownload>,
-  selectedCategory: string | null 
+  selectedCategory: string | null
 }
 
-export type CallbackType = 'REFRESH_DOwNLOAD' | 'NAVIGATE_PAGE' | 'CATEGORY_SELECTED' | 'SET_CATEGORY'
+export type CallbackType = 'REFRESH_DOWNLOAD' | 'NAVIGATE_PAGE' | 'CATEGORY_SELECTED' | 'SET_CATEGORY'

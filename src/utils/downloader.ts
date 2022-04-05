@@ -104,6 +104,7 @@ const downloadMedia = async (ctx: Context, msg: Api.Message, downloads: Map<stri
       console.log(`Download completed, file saved at path ${filePath}`, JSON.stringify(msg));
       database.instance.run(`insert into downloads values(${msg.id})`)
     } else {
+        console.error("Buffer is empty", JSON.stringify(msg))
       ctx.reply("Couldn't download media.", {
         reply_to_message_id: ctx.message?.message_id
       });
@@ -113,22 +114,4 @@ const downloadMedia = async (ctx: Context, msg: Api.Message, downloads: Map<stri
       reply_to_message_id: ctx.message?.message_id
     })
   }
-}
-
-// Returns the chunk size in KB depending upon fileSize in bytes
-// This method is picked from gramjs
-const getAppropriatedPartSize = (fileSize: number) => {
-  if (fileSize <= 104857600) {
-    // 100MB
-    return 128;
-  }
-  if (fileSize <= 786432000) {
-    // 750MB
-    return 256;
-  }
-  if (fileSize <= 2097152000) {
-    // 2000MB
-    return 512;
-  }
-  return 64
 }

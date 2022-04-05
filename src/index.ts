@@ -114,7 +114,7 @@ bot.on("callback_query", async (ctx) => {
   if (R.isNil(callbackQuery)) return
   const callbackType = getCallbackTypeFromQuery(callbackQuery)
   console.log("Callback query", callbackQuery, callbackType);
-  if (callbackType == "REFRESH_DOwNLOAD") {
+  if (callbackType == "REFRESH_DOWNLOAD") {
     const pageButtons = constructPageButtons(state, 1)
     ctx.editMessageText(constructDownloadList(state, 1), {
       reply_markup: Markup.inlineKeyboard([[buttons.refreshDownloadBtn], pageButtons]).reply_markup

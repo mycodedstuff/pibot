@@ -137,7 +137,7 @@ export const constructPageButtons = (state: PiState, currentPage: number) => {
 export const getCallbackTypeFromQuery = (callbackQuery: string): CallbackType | null => {
   if (!R.isNil(callbackQuery)) {
     if (callbackQuery == constants.refreshDownloads) {
-      return "REFRESH_DOwNLOAD"
+      return "REFRESH_DOWNLOAD"
     } else if (R.startsWith(constants.pageNoPrefix, callbackQuery)) {
       return "NAVIGATE_PAGE"
     } else if (R.startsWith(constants.categoryPrefix, callbackQuery)) {
