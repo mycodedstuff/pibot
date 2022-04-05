@@ -144,7 +144,7 @@ bot.on("callback_query", async (ctx) => {
   } else if (callbackType == "SET_CATEGORY") {
     const selectedCategory = R.split("_", callbackQuery)[2]
     state.selectedCategory = selectedCategory
-    ctx.editMessageText(`I've set category *${selectedCategory}* for all incoming medias\.`, {
+    ctx.editMessageText(`I've set category *${selectedCategory}* for all incoming medias\\.`, {
       parse_mode: 'MarkdownV2'
     })
   }
