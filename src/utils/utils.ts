@@ -5,7 +5,7 @@ import mime from "mime-types"
 import path from "path"
 import fs from "fs"
 import { Config } from "../config/config";
-import { CallbackType, PiState } from "../types";
+import { CallbackType, Download, DownloadStatus, PiState } from "../types";
 import bytes from "bytes";
 import { Markup } from "telegraf";
 import * as constants from "../config/constants"
@@ -90,15 +90,45 @@ export const constructDownloadList = (state: PiState, currentPageNo: number) => 
   let msg = "📥  Downloads\n\n"
   const nextDownloadList = R.take(state.config.maxDownloadsInList, R.drop(state.config.maxDownloadsInList * (currentPageNo - 1), Array.from(state.downloads.values())))
   for (const download of nextDownloadList) {
-    if (download.percentage) {
-      const progress = download.percentage == -1 ? "starting" : `${download.percentage}%`
-      const prefix = download.percentage === 100 ? "🟢" : "🟠"
-      msg += `${prefix}  ${download.name}\n   Progress: ${progress}\n\n`
-    } else {
-      msg += `${download.name} => ${bytes(download.downloadedTillNow)} downloaded\n\n`
-    }
+    const prefix = getSymbolForStatus(download.status)
+    const progress = getProgressOfDownload(download)
+    msg += `${prefix}  ${download.name} : ${progress}\n\n`
   }
   return msg
+}
+
+const getProgressOfDownload = (download: Download) => {
+  if (download.status === "STARTING") {
+    return "Starting"
+  } else if (download.status === "COMPLETED") {
+    return "Completed"
+  } else if (download.status === "CANCELED") {
+    return "Canceled"
+  } else if (download.status === "ERRORED") {
+    return "Errored"
+  } else {
+    if (download.percentage) {
+      return `${download.percentage}%`
+    }
+    else {
+      return `${bytes(download.downloadedTillNow)} downloaded`
+    }
+  }
+}
+
+const getSymbolForStatus = (status: DownloadStatus) => {
+  switch (status) {
+    case "STARTING":
+      return "🔵"
+    case "DOWNLOADING":
+      return "🟠"
+    case "COMPLETED":
+      return "🟢"
+    case "CANCELED":
+      return "🔴"
+    case "ERRORED":
+      return "🔴"
+  }
 }
 
 export const buttons = {

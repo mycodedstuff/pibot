@@ -85,25 +85,36 @@ const downloadMedia = async (ctx: Context, msg: Api.Message, downloads: Map<stri
       reply_to_message_id: ctx.message?.message_id
     })
     const fileName = path.basename(filePath)
-    downloads.set(fileName, { name: fileName, percentage: -1, downloadedTillNow: 0 })
-    const buffer = await msg.downloadMedia({
-      progressCallback: (progress) => {
-        if (fileSize) {
-          const percentage = parseInt(((progress / fileSize) * 100).toFixed(2))
-          downloads.set(fileName, { name: fileName, percentage, downloadedTillNow: progress })
-        } else {
-          downloads.set(fileName, { name: fileName, downloadedTillNow: progress })
+    const download: Download = { name: fileName, percentage: 0, downloadedTillNow: 0, status: 'STARTING' }
+    downloads.set(fileName, download)
+    try {
+      const buffer = await msg.downloadMedia({
+        progressCallback: (progress) => {
+          if (fileSize) {
+            const percentage = parseInt(((progress / fileSize) * 100).toFixed(2))
+            download.percentage = percentage
+          }
+          download.downloadedTillNow = progress
+          download.status = 'DOWNLOADING'
         }
-      }
-    })
-    if (!R.isNil(buffer)) {
-      fs.writeFileSync(filePath, buffer)
-      ctx.reply("Download complete.", {
-        reply_to_message_id: ctx.message?.message_id
       })
-      console.log(`Download completed, file saved at path ${filePath}`, JSON.stringify(msg));
-    } else {
+      if (!R.isNil(buffer)) {
+        fs.writeFileSync(filePath, buffer)
+        download.status = 'COMPLETED'
+        ctx.reply("Download complete.", {
+          reply_to_message_id: ctx.message?.message_id
+        })
+        console.log(`Download completed, file saved at path ${filePath}`, JSON.stringify(msg));
+      } else {
         console.error("Buffer is empty", JSON.stringify(msg))
+        download.status = 'ERRORED'
+        ctx.reply("Couldn't download media.", {
+          reply_to_message_id: ctx.message?.message_id
+        });
+      }
+    } catch (error) {
+      console.log("Exception occurred during download", error, JSON.stringify(msg))
+      download.status = 'ERRORED'
       ctx.reply("Couldn't download media.", {
         reply_to_message_id: ctx.message?.message_id
       });

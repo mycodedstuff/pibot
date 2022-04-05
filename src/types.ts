@@ -6,7 +6,8 @@ import { Config } from "./config/config"
 export type Download = {
   percentage?: number,
   name: string,
-  downloadedTillNow: number
+  downloadedTillNow: number,
+  status: DownloadStatus
 }
 
 export type CodeInputMode = "CLI" | "WEB"
@@ -23,3 +24,5 @@ export type PiState = {
 }
 
 export type CallbackType = 'REFRESH_DOWNLOAD' | 'NAVIGATE_PAGE' | 'CATEGORY_SELECTED' | 'SET_CATEGORY'
+
+export type DownloadStatus = 'STARTING' | 'DOWNLOADING' | 'COMPLETED' | 'CANCELED' | 'ERRORED'

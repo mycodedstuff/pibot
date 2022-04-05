@@ -40,7 +40,11 @@ const state: PiState = {
   selectedCategory: null
 }
 
-// Middleware to log all messages
+bot.catch((error, _) => {
+  console.error("Exception captured by error handler", error)
+})
+
+// Middleware to allow messages from whitelisted usernames/ids
 bot.use((ctx, next) => {
   if (ctx.from && !ctx.from.is_bot && (config.whitelistedUsers.findIndex((identity => ctx.from?.username === identity || ctx.from?.id === parseInt(identity))) != -1)) {
     next()
@@ -49,6 +53,7 @@ bot.use((ctx, next) => {
   }
 })
 
+// Middleware to log all messages
 bot.use((ctx, next) => {
   if (ctx.message)
     console.log(JSON.stringify(ctx.message))
