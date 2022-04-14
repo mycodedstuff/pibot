@@ -1,6 +1,6 @@
 import { Api, TelegramClient } from "telegram";
 import * as R from "ramda"
-import { Document, Message, Video } from "telegraf/typings/core/types/typegram";
+import { Document, Message, ReplyMessage, Video } from "telegraf/typings/core/types/typegram";
 import mime from "mime-types"
 import path from "path"
 import fs from "fs"
@@ -191,4 +191,10 @@ export const findCategory = (config: Config, dirName: string) => {
       return category
     }
   }
+}
+
+export const isMessageTypeMedia = (message: ReplyMessage | Message): message is Message.VideoMessage | Message.DocumentMessage => {
+  if ("video" in message) return true
+  if ("document" in message) return true
+  return false
 }

@@ -1,5 +1,5 @@
 // Third party dependencies
-import { Context, Telegraf, Markup, Types } from 'telegraf'
+import { Context, Telegraf, Markup } from 'telegraf'
 import { TelegramClient } from 'telegram'
 import { StringSession } from 'telegram/sessions'
 import * as R from "ramda"
@@ -8,12 +8,12 @@ import ngrok from "ngrok"
 
 // Local modules
 import * as constants from "./config/constants"
-import { downloadMediaFromMessage } from "./utils/downloader"
+import { startMediaDownload } from "./utils/downloader"
 import { getConfig } from './config/config'
 import { Download, PiState } from "./types"
 import * as server from "./server"
 import { Server } from "http"
-import { buttons, constructDownloadList, constructPageButtons, getCallbackTypeFromQuery } from './utils/utils'
+import { buttons, constructDownloadList, constructPageButtons, getCallbackTypeFromQuery, isMessageTypeMedia } from './utils/utils'
 
 // Globals
 const downloads = new Map<string, Download>()
@@ -92,54 +92,59 @@ bot.command("/disconnect", async ctx => {
 })
 
 bot.on("callback_query", async (ctx) => {
-  const callbackQuery = R.path(["data"], ctx.update.callback_query) as string | undefined
-  if (R.isNil(callbackQuery)) return
-  const callbackType = getCallbackTypeFromQuery(callbackQuery)
-  console.log("Callback query", callbackQuery, callbackType);
-  if (callbackType == "REFRESH_DOWNLOAD") {
-    const pageButtons = constructPageButtons(state, 1)
-    ctx.editMessageText(constructDownloadList(state, 1), {
-      reply_markup: Markup.inlineKeyboard([[buttons.refreshDownloadBtn], pageButtons]).reply_markup
-    })
-  } else if (callbackType == "NAVIGATE_PAGE") {
-    const currentPageNo = parseInt(R.split("_", callbackQuery)[2])
-    const pageButtons = constructPageButtons(state, currentPageNo)
-    const msg = constructDownloadList(state, currentPageNo)
-    if (ctx.message !== msg) {
-      console.log("Message =>", ctx.message);
+  try {
+    const callbackQuery = R.path(["data"], ctx.update.callback_query) as string | undefined
+    if (R.isNil(callbackQuery)) return
+    const callbackType = getCallbackTypeFromQuery(callbackQuery)
+    console.log("Callback query", callbackQuery, callbackType);
+    if (callbackType == "REFRESH_DOWNLOAD") {
+      const pageButtons = constructPageButtons(state, 1)
+      ctx.editMessageText(constructDownloadList(state, 1), {
+        reply_markup: Markup.inlineKeyboard([[buttons.refreshDownloadBtn], pageButtons]).reply_markup
+      })
+    } else if (callbackType == "NAVIGATE_PAGE") {
+      const currentPageNo = parseInt(R.split("_", callbackQuery)[2])
+      const pageButtons = constructPageButtons(state, currentPageNo)
+      const msg = constructDownloadList(state, currentPageNo)
       ctx.editMessageText(msg, {
         reply_markup: Markup.inlineKeyboard([[buttons.refreshDownloadBtn], pageButtons]).reply_markup
       })
+    } else if (callbackType == "CATEGORY_SELECTED") {
+      const splitArr = R.split("_", callbackQuery)
+      const category = splitArr[1]
+      const identifier = splitArr[2]
+      const work = state.pendingDownloads.get(identifier)
+      ctx.editMessageText(`You selected category ${category}.`)
+      if (!R.isNil(work)) {
+        console.log("Starting pending download", identifier)
+        await (category === "Others" ? work(constants.defaultMediaCategory) : work(category))
+      } else {
+        console.warn("Couldn't find the pending download", identifier);
+      }
     }
-  } else if (callbackType == "CATEGORY_SELECTED") {
-    const splitArr = R.split("_", callbackQuery)
-    const category = splitArr[1]
-    const identifier = splitArr[2]
-    const work = state.pendingDownloads.get(identifier)
-    ctx.editMessageText(`You selected category ${category}.`)
-    if (!R.isNil(work)) {
-      console.log("Starting pending download", identifier)
-      await (category === "Others" ? work(constants.defaultMediaCategory) : work(category))
-    } else {
-      console.warn("Couldn't find the pending download", identifier);
-    }
+  } catch (error) {
+    console.error("Exception captured in callback_query handler", error)
   }
 })
 
 // Configure events
 // TODO: Add support to download direct uploads to bot
 bot.on(["document", "video"], async (ctx) => {
-  if (client.connected) {
-    try {
-      await downloadMediaFromMessage(state, ctx, ctx.message)
-    } catch (error) {
-      ctx.reply("Exception occurred while downloading this media", {
+  await startMediaDownload(state, ctx, ctx.message)
+})
+
+bot.command("/redownload", async (ctx) => {
+  const message = ctx.message.reply_to_message
+  if (!R.isNil(message)) {
+    if (isMessageTypeMedia(message)) {
+      await startMediaDownload(state, ctx, message, true)
+    } else {
+      ctx.reply("Replied message isn't a video/document.", {
         reply_to_message_id: ctx.message.message_id
       })
-      console.error("Exception occurred while downloading media", ctx.message.message_id, error);
     }
   } else {
-    ctx.reply("Couldn't start downloading as client isn't connected.", {
+    ctx.reply("Reply to a video/document to redownload it.", {
       reply_to_message_id: ctx.message.message_id
     })
   }

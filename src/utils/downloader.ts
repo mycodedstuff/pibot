@@ -9,8 +9,25 @@ import { Message } from "telegraf/typings/core/types/typegram";
 import * as uuid from "uuid"
 import * as constants from "../config/constants"
 
+export const startMediaDownload = async (state: PiState, ctx: Context, message: Message.VideoMessage | Message.DocumentMessage, force: boolean = false) => {
+  if (state.client.connected) {
+    try {
+      await downloadMediaFromMessage(state, ctx, message, force)
+    } catch (error) {
+      ctx.reply("Exception occurred while downloading this media", {
+        reply_to_message_id: message.message_id
+      })
+      console.error("Exception occurred while downloading media", message.message_id, error);
+    }
+  } else {
+    ctx.reply("Couldn't start downloading as client isn't connected.", {
+      reply_to_message_id: message.message_id
+    })
+  }
+}
+
 // Proceed to find the message the bot received and start downloading the document/video
-export const downloadMediaFromMessage = async (state: PiState, ctx: Context, message: Message.VideoMessage | Message.DocumentMessage) => {
+const downloadMediaFromMessage = async (state: PiState, ctx: Context, message: Message.VideoMessage | Message.DocumentMessage, force: boolean) => {
   if (!message.via_bot) {
     const msgId = message.message_id
     console.log("Fetching media via client", JSON.stringify(message));
@@ -33,7 +50,7 @@ export const downloadMediaFromMessage = async (state: PiState, ctx: Context, mes
             if (shouldStartDownload) {
               if (timeout) console.log("Media selection timed out", identifier)
               const filePath = mkDownloadPath(state.config, category, mediaDir, mediaMetadata.fileName)
-              await downloadMedia(ctx, tgMsg, state.downloads, filePath, mediaMetadata.fileSize)
+              await downloadMedia(ctx, msgId, tgMsg, state.downloads, filePath, mediaMetadata.fileSize, force)
             }
           }
           if (identifier) {
@@ -79,11 +96,11 @@ export const downloadMediaFromMessage = async (state: PiState, ctx: Context, mes
 
 // Download media associated with a message
 // This function will also publish the status within bot
-const downloadMedia = async (ctx: Context, msg: Api.Message, downloads: Map<string, Download>, filePath: string, fileSize?: number) => {
-  if (!fs.existsSync(filePath)) {
+const downloadMedia = async (ctx: Context, msgId: number, msg: Api.Message, downloads: Map<string, Download>, filePath: string, fileSize?: number, force: boolean = false) => {
+  if (!fs.existsSync(filePath) || force) {
     console.log("Downloading media to path " + filePath, JSON.stringify(msg));
     ctx.reply("Downloading...", {
-      reply_to_message_id: ctx.message?.message_id
+      reply_to_message_id: msgId
     })
     const fileName = path.basename(filePath)
     const download: Download = { name: fileName, percentage: 0, downloadedTillNow: 0, status: 'STARTING' }
@@ -103,18 +120,18 @@ const downloadMedia = async (ctx: Context, msg: Api.Message, downloads: Map<stri
       download.status = 'COMPLETED'
       console.log(`Download completed, file saved at path ${filePath}`, JSON.stringify(msg));
       ctx.reply("Download complete.", {
-        reply_to_message_id: ctx.message?.message_id
+        reply_to_message_id: msgId
       })
     } catch (error) {
       console.log("Exception occurred during download", error, JSON.stringify(msg))
       download.status = 'ERRORED'
       ctx.reply("Couldn't download media.", {
-        reply_to_message_id: ctx.message?.message_id
+        reply_to_message_id: msgId
       });
     }
   } else {
     ctx.reply("Media already downloaded.", {
-      reply_to_message_id: ctx.message?.message_id
+      reply_to_message_id: msgId
     })
   }
 }
