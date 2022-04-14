@@ -172,8 +172,6 @@ export const getCallbackTypeFromQuery = (callbackQuery: string): CallbackType | 
       return "NAVIGATE_PAGE"
     } else if (R.startsWith(constants.categoryPrefix, callbackQuery)) {
       return "CATEGORY_SELECTED"
-    } else if (R.startsWith(constants.selectCategoryPrefix, callbackQuery)) {
-      return "SET_CATEGORY"
     }
   }
   return null
@@ -183,4 +181,14 @@ export const mkMediaCategoryButtons = (mediaCategories: string[], uuid: string) 
   return mediaCategories.map(categoryName => {
     return buttons.category(categoryName, uuid)
   })
+}
+
+export const findCategory = (config: Config, dirName: string) => {
+  for (let category of config.mediaCategories) {
+    category = category === "Others" ? constants.defaultMediaCategory : category
+    const dirPath = path.normalize(path.join(config.downloadDir, category, dirName))
+    if (fs.existsSync(dirPath)) {
+      return category
+    }
+  }
 }

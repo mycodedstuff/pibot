@@ -21,5 +21,3 @@ export const pageNoPrefix = "page_no_"
 export const categoryPrefix = "category_"
 
 export const defaultMediaCategory = "Telegram"
-
-export const selectCategoryPrefix = "select_category_"

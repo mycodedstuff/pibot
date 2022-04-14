@@ -3,9 +3,8 @@ import * as path from "path"
 import { Context, Markup } from "telegraf";
 import { Api } from "telegram";
 import * as R from "ramda"
-import * as database from "./database"
 import { Download, PiState } from "../types";
-import { findMediaMessage, getMediaMetadata, getMessage, getMessageMetadata, mkDownloadPath, mkMediaCategoryButtons } from "./utils";
+import { findMediaMessage, getMediaMetadata, getMessage, getMessageMetadata, mkDownloadPath, mkMediaCategoryButtons, findCategory } from "./utils";
 import { Message } from "telegraf/typings/core/types/typegram";
 import * as uuid from "uuid"
 import * as constants from "../config/constants"
@@ -26,13 +25,14 @@ export const downloadMediaFromMessage = async (state: PiState, ctx: Context, mes
       }
       if (!R.isNil(tgMsg)) {
         const mediaMetadata = R.has("video", message) ? getMediaMetadata(message.video) : getMediaMetadata(message.document)
+        const mediaDir = msgMetadata.orgMsgOriginName || "pi_media"
         const work = (tgMsg: Api.Message, categorySelectedMsg?: Message.TextMessage, identifier?: string) => {
           const mediaDownloader = async (category: string, timeout?: boolean) => {
             let shouldStartDownload = R.isNil(identifier)
             if (identifier) shouldStartDownload = state.pendingDownloads.delete(identifier)
             if (shouldStartDownload) {
               if (timeout) console.log("Media selection timed out", identifier)
-              const filePath = mkDownloadPath(state.config, category, msgMetadata.orgMsgOriginName || "pi_media", mediaMetadata.fileName)
+              const filePath = mkDownloadPath(state.config, category, mediaDir, mediaMetadata.fileName)
               await downloadMedia(ctx, tgMsg, state.downloads, filePath, mediaMetadata.fileSize)
             }
           }
@@ -47,7 +47,8 @@ export const downloadMediaFromMessage = async (state: PiState, ctx: Context, mes
           }
           return mediaDownloader
         }
-        if (state.config.enabledMediaCategories && R.isNil(state.selectedCategory)) {
+        const mediaCategory = findCategory(state.config, mediaDir)
+        if (state.config.enabledMediaCategories && R.isNil(mediaCategory)) {
           const identifier = uuid.v4()
           console.log("Adding media to pending downloads", identifier)
           const chooseCategoryMsg = await ctx.reply("Choose a category for this media.", {
@@ -57,7 +58,7 @@ export const downloadMediaFromMessage = async (state: PiState, ctx: Context, mes
           state.pendingDownloads.set(identifier, work(tgMsg, chooseCategoryMsg, identifier))
 
         } else {
-          await work(tgMsg)(state.selectedCategory ?? '')
+          await work(tgMsg)(mediaCategory ?? '')
         }
       } else {
         console.log("Couldn't find the msg with id", msgMetadata.orgMsgId, msgMetadata.orgMsgUserName);

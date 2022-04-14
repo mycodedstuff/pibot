@@ -36,8 +36,7 @@ const state: PiState = {
   bot: bot,
   downloads: downloads,
   config: config,
-  pendingDownloads: new Map(),
-  selectedCategory: null
+  pendingDownloads: new Map()
 }
 
 bot.catch((error, _) => {
@@ -92,28 +91,6 @@ bot.command("/disconnect", async ctx => {
   }
 })
 
-bot.command("/setcategory", ctx => {
-  if (config.enabledMediaCategories) {
-    const options = state.config.mediaCategories.map(txt => Markup.button.callback(txt, constants.selectCategoryPrefix + txt))
-    ctx.reply("Choose a category.", {
-      reply_markup: Markup.inlineKeyboard(options, {
-        columns: 2
-      }).reply_markup
-    })
-  } else {
-    ctx.reply("Media categories feature isn't enabled.")
-  }
-})
-
-bot.command("/clearcategory", ctx => {
-  if (config.enabledMediaCategories) {
-    state.selectedCategory = null
-    ctx.reply("Cleared selected category.")
-  } else {
-    ctx.reply("Media categories feature isn't enabled.")
-  }
-})
-
 bot.on("callback_query", async (ctx) => {
   const callbackQuery = R.path(["data"], ctx.update.callback_query) as string | undefined
   if (R.isNil(callbackQuery)) return
@@ -146,12 +123,6 @@ bot.on("callback_query", async (ctx) => {
     } else {
       console.warn("Couldn't find the pending download", identifier);
     }
-  } else if (callbackType == "SET_CATEGORY") {
-    const selectedCategory = R.split("_", callbackQuery)[2]
-    state.selectedCategory = selectedCategory
-    ctx.editMessageText(`I've set category *${selectedCategory}* for all incoming medias\\.`, {
-      parse_mode: 'MarkdownV2'
-    })
   }
 })
 
