@@ -88,30 +88,22 @@ const downloadMedia = async (ctx: Context, msg: Api.Message, downloads: Map<stri
     const download: Download = { name: fileName, percentage: 0, downloadedTillNow: 0, status: 'STARTING' }
     downloads.set(fileName, download)
     try {
-      const buffer = await msg.downloadMedia({
+      await msg.downloadMedia({
         progressCallback: (progress) => {
           if (fileSize) {
-            const percentage = parseInt(((progress / fileSize) * 100).toFixed(2))
+            const percentage = parseFloat(((progress / fileSize) * 100).toFixed(2))
             download.percentage = percentage
           }
           download.downloadedTillNow = progress
           download.status = 'DOWNLOADING'
-        }
+        },
+        outputFile: filePath
       })
-      if (!R.isNil(buffer)) {
-        fs.writeFileSync(filePath, buffer)
-        download.status = 'COMPLETED'
-        ctx.reply("Download complete.", {
-          reply_to_message_id: ctx.message?.message_id
-        })
-        console.log(`Download completed, file saved at path ${filePath}`, JSON.stringify(msg));
-      } else {
-        console.error("Buffer is empty", JSON.stringify(msg))
-        download.status = 'ERRORED'
-        ctx.reply("Couldn't download media.", {
-          reply_to_message_id: ctx.message?.message_id
-        });
-      }
+      download.status = 'COMPLETED'
+      console.log(`Download completed, file saved at path ${filePath}`, JSON.stringify(msg));
+      ctx.reply("Download complete.", {
+        reply_to_message_id: ctx.message?.message_id
+      })
     } catch (error) {
       console.log("Exception occurred during download", error, JSON.stringify(msg))
       download.status = 'ERRORED'

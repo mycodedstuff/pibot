@@ -1,5 +1,6 @@
 [Unit]
 Description=PiBot
+After=network-online.target
 
 [Service]
 Type=simple
