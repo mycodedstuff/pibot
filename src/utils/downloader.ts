@@ -4,10 +4,13 @@ import { Context, Markup } from "telegraf";
 import { Api } from "telegram";
 import * as R from "ramda"
 import { Download, PiState } from "../types";
-import { findMediaMessage, getMediaMetadata, getMessage, getMessageMetadata, mkDownloadPath, mkMediaCategoryButtons, findCategory } from "./utils";
+import { findMediaMessage, getMediaMetadata, getMessage, getMessageMetadata, mkDownloadPath, mkMediaCategoryButtons, findCategory, mkSeasonButtons, shouldAskForSeason } from "./utils";
 import { Message } from "telegraf/typings/core/types/typegram";
 import * as uuid from "uuid"
 import * as constants from "../config/constants"
+import sanitize from "sanitize-filename";
+
+type MessageDownloadFn = (tgMsg: Api.Message, categorySelectedMsg?: Message.TextMessage, identifier?: string) => (category: string, season?: number, timeout?: boolean) => Promise<void>
 
 export const startMediaDownload = async (state: PiState, ctx: Context, message: Message.VideoMessage | Message.DocumentMessage, force: boolean = false) => {
   if (state.client.connected) {
@@ -32,62 +35,64 @@ const downloadMediaFromMessage = async (state: PiState, ctx: Context, message: M
     const msgId = message.message_id
     console.log("Fetching media via client", JSON.stringify(message));
     const msgMetadata = getMessageMetadata(message)
-    if (!R.isNil(msgMetadata.orgMsgId) && !R.isNil(msgMetadata.orgMsgUserName)) {
-      let tgMsg = await getMessage(state.client, msgMetadata.orgMsgUserName, msgMetadata.orgMsgId)
-      if (R.isNil(tgMsg)) {
-        if (message.caption && state.bot.botInfo?.username) {
-          console.log("Using search method to find message", msgId);
-          tgMsg = await findMediaMessage(state.client, message.caption, state.bot.botInfo.username, new Api.InputMessagesFilterVideo())
-        }
-      }
-      if (!R.isNil(tgMsg)) {
-        const mediaMetadata = R.has("video", message) ? getMediaMetadata(message.video) : getMediaMetadata(message.document)
-        const mediaDir = msgMetadata.orgMsgOriginName || "pi_media"
-        const work = (tgMsg: Api.Message, categorySelectedMsg?: Message.TextMessage, identifier?: string) => {
-          const mediaDownloader = async (category: string, timeout?: boolean) => {
-            let shouldStartDownload = R.isNil(identifier)
-            if (identifier) shouldStartDownload = state.pendingDownloads.delete(identifier)
-            if (shouldStartDownload) {
-              if (timeout) console.log("Media selection timed out", identifier)
-              const filePath = mkDownloadPath(state.config, category, mediaDir, mediaMetadata.fileName)
-              await downloadMedia(ctx, msgId, tgMsg, state.downloads, filePath, mediaMetadata.fileSize, force)
-            }
-          }
-          if (identifier) {
-            setTimeout(_ => {
-              setTimeout(_ => {
-                if (categorySelectedMsg && ctx.chat?.id)
-                  state.bot.telegram.deleteMessage(ctx.chat.id, categorySelectedMsg.message_id)
-              }, state.config.categoryMessageTime)
-              return mediaDownloader(constants.defaultMediaCategory, true)
-            }, state.config.categorySelectionTimeout)
-          }
-          return mediaDownloader
-        }
-        const mediaCategory = findCategory(state.config, mediaDir)
-        if (state.config.enabledMediaCategories && R.isNil(mediaCategory)) {
-          const identifier = uuid.v4()
-          console.log("Adding media to pending downloads", identifier)
-          const chooseCategoryMsg = await ctx.reply("Choose a category for this media.", {
-            reply_markup: Markup.inlineKeyboard(mkMediaCategoryButtons(state.config.mediaCategories, identifier), { columns: 3 }).reply_markup,
-            reply_to_message_id: msgId
-          })
-          state.pendingDownloads.set(identifier, work(tgMsg, chooseCategoryMsg, identifier))
-
-        } else {
-          await work(tgMsg)(mediaCategory ?? '')
-        }
-      } else {
-        console.log("Couldn't find the msg with id", msgMetadata.orgMsgId, msgMetadata.orgMsgUserName);
-        ctx.reply("Couldn't find the original message.", {
-          reply_to_message_id: msgId
-        })
-      }
-    } else {
+    if (R.isNil(msgMetadata.orgMsgId) || R.isNil(msgMetadata.orgMsgUserName)) {
       console.log("Couldn't find msg details", msgId);
-      ctx.reply("Couldn't find message details.", {
+      return void ctx.reply("Couldn't find message details.", {
         reply_to_message_id: msgId
       })
+    }
+    let tgMsg = await getMessage(state.client, msgMetadata.orgMsgUserName, msgMetadata.orgMsgId)
+    if (R.isNil(tgMsg)) {
+      if (message.caption && state.bot.botInfo?.username) {
+        console.log("Using search method to find message", msgId);
+        tgMsg = await findMediaMessage(state.client, message.caption, state.bot.botInfo.username, new Api.InputMessagesFilterVideo())
+      }
+    }
+    if (R.isNil(tgMsg)) {
+      console.log("Couldn't find the msg with id", msgMetadata.orgMsgId, msgMetadata.orgMsgUserName);
+      return void ctx.reply("Couldn't find the original message.", {
+        reply_to_message_id: msgId
+      })
+    }
+    const mediaMetadata = R.has("video", message) ? getMediaMetadata(message.video) : getMediaMetadata(message.document)
+    const mediaDir = sanitize(msgMetadata.orgMsgOriginName || "pi_media", { replacement: ' ' }).replace(/\s{2,}/, ' ')
+    const work: MessageDownloadFn = (tgMsg: Api.Message, categorySelectedMsg?: Message.TextMessage, identifier?: string) => {
+      const mediaDownloader = async (category: string, season?: number, timeout?: boolean) => {
+        let shouldStartDownload = R.isNil(identifier)
+        if (identifier) shouldStartDownload = state.pendingDownloads.delete(identifier)
+        if (shouldStartDownload) {
+          if (timeout) console.log("Media selection timed out", identifier)
+          const filePath = mkDownloadPath(state.config, category, season, mediaDir, mediaMetadata.fileName)
+          await downloadMedia(ctx, msgId, tgMsg, state.downloads, filePath, mediaMetadata.fileSize, force)
+        }
+      }
+      if (identifier) {
+        setTimeout(_ => {
+          setTimeout(_ => {
+            if (categorySelectedMsg && ctx.chat?.id)
+              state.bot.telegram.deleteMessage(ctx.chat.id, categorySelectedMsg.message_id)
+          }, state.config.categoryMessageTime)
+          return mediaDownloader(constants.defaultMediaCategory, undefined, true)
+        }, state.config.categorySelectionTimeout)
+      }
+      return mediaDownloader
+    }
+    const identifier = uuid.v4()
+    const mediaCategory = findCategory(state.config, mediaDir)
+    if (state.config.enabledMediaCategories) {
+      if (R.isNil(mediaCategory)) {
+        const chooseCategoryMsg = await askCategory(state, ctx, msgId, tgMsg, identifier, work)
+        console.log("Adding media to pending downloads", identifier)
+        state.pendingDownloads.set(identifier, work(tgMsg, chooseCategoryMsg, identifier))
+      } else if (shouldAskForSeason(mediaCategory)) {
+        const askSeasonMsg = await askSeason(ctx, msgId, mediaCategory, identifier)
+        console.log("Adding media to pending downloads", identifier)
+        state.pendingDownloads.set(identifier, work(tgMsg, askSeasonMsg, identifier))
+      } else {
+        await work(tgMsg)(mediaCategory ?? '')
+      }
+    } else {
+      await work(tgMsg)(mediaCategory ?? '')
     }
   } else {
     console.log("Ignoring message sent via bot", JSON.stringify(message));
@@ -134,4 +139,18 @@ const downloadMedia = async (ctx: Context, msgId: number, msg: Api.Message, down
       reply_to_message_id: msgId
     })
   }
+}
+
+const askCategory = (state: PiState, ctx: Context, msgId: number, tgMsg: Api.Message, identifier: string, work: MessageDownloadFn) => {
+  return ctx.reply("Choose a category for this media.", {
+    reply_markup: Markup.inlineKeyboard(mkMediaCategoryButtons(state.config.mediaCategories, identifier), { columns: 3 }).reply_markup,
+    reply_to_message_id: msgId
+  })
+}
+
+const askSeason = (ctx: Context, msgId: number, category: string, identifier: string) => {
+  return ctx.reply(`Choose season for this media.`, {
+    reply_markup: Markup.inlineKeyboard(mkSeasonButtons(category, identifier, 0, 8), { columns: 3 }).reply_markup, //TODO: Add support for more seasons
+    reply_to_message_id: msgId
+  })
 }

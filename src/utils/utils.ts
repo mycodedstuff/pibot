@@ -70,8 +70,9 @@ const getMsgOriginName = (message: Message.CommonMessage) => {
 }
 
 // Constructs download path for media, also creates the path in filesystem
-export const mkDownloadPath = (config: Config, category: string, channelName: string, fileName: string) => {
-  const downloadPath = path.normalize(path.join(config.downloadDir, category, sanitize(channelName, { replacement: ' ' }).replace(/\s{2,}/, ' ')))
+export const mkDownloadPath = (config: Config, category: string, season: number | undefined, channelName: string, fileName: string) => {
+  const seasonDir = !R.isNil(season) ? (season === 0 ? 'Specials' : `Season ${season}`) : ''
+  const downloadPath = path.normalize(path.join(config.downloadDir, category, sanitize(channelName, { replacement: ' ' }).replace(/\s{2,}/, ' '), seasonDir))
   if (!fs.existsSync(downloadPath)) fs.mkdirSync(downloadPath, { recursive: true })
   return path.join(downloadPath, fileName)
 }
@@ -136,7 +137,8 @@ export const buttons = {
   paginatedBtn: (pageNo: number, current: number) => Markup.button.callback(pageNo == current ? "🔘" : pageNo.toString(), constants.pageNoPrefix + pageNo),
   previousPage: (previousPage: number) => Markup.button.callback("<<", constants.pageNoPrefix + previousPage),
   nextPage: (nextPage: number) => Markup.button.callback(">>", constants.pageNoPrefix + nextPage),
-  category: (categoryName: string, identifier: string) => Markup.button.callback(categoryName, constants.categoryPrefix + categoryName + '_' + identifier)
+  category: (categoryName: string, identifier: string) => Markup.button.callback(categoryName, constants.categoryPrefix + categoryName + '_' + identifier),
+  season: (number: number, identifier: string, category: string) => Markup.button.callback(number === 0 ? 'Specials' : `Season ${number}`, constants.seasonPrefix + number + '_' + category + '_' + identifier)
 }
 
 export const constructPageButtons = (state: PiState, currentPage: number) => {
@@ -172,6 +174,8 @@ export const getCallbackTypeFromQuery = (callbackQuery: string): CallbackType | 
       return "NAVIGATE_PAGE"
     } else if (R.startsWith(constants.categoryPrefix, callbackQuery)) {
       return "CATEGORY_SELECTED"
+    } else if (R.startsWith(constants.seasonPrefix, callbackQuery)) {
+      return "SEASON_SELECTED"
     }
   }
   return null
@@ -197,4 +201,16 @@ export const isMessageTypeMedia = (message: ReplyMessage | Message): message is 
   if ("video" in message) return true
   if ("document" in message) return true
   return false
+}
+
+export const mkSeasonButtons = (category: string, identifier: string, start: number, step: number) => {
+  const seasonButtons = []
+  for (let num = start; num <= start + step; num++) {
+    seasonButtons.push(buttons.season(num, identifier, category))
+  }
+  return seasonButtons
+}
+
+export const shouldAskForSeason = (category: string) => {
+  return ["Anime", "Series"].indexOf(category) !== -1
 }

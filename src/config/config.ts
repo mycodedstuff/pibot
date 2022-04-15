@@ -28,7 +28,7 @@ export const getConfig = (): Config => {
 
   const mediaCategories = ["Anime", "Movies", "Series", "Others"] //TODO: Add category wise path
 
-  const categorySelectionTimeout = 10000
+  const categorySelectionTimeout = 15000
 
   const maxDownloadsInList = 5
 

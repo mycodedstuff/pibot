@@ -13,7 +13,7 @@ import { getConfig } from './config/config'
 import { Download, PiState } from "./types"
 import * as server from "./server"
 import { Server } from "http"
-import { buttons, constructDownloadList, constructPageButtons, getCallbackTypeFromQuery, isMessageTypeMedia } from './utils/utils'
+import { buttons, constructDownloadList, constructPageButtons, getCallbackTypeFromQuery, isMessageTypeMedia, mkSeasonButtons, shouldAskForSeason } from './utils/utils'
 
 // Globals
 const downloads = new Map<string, Download>()
@@ -113,11 +113,30 @@ bot.on("callback_query", async (ctx) => {
       const splitArr = R.split("_", callbackQuery)
       const category = splitArr[1]
       const identifier = splitArr[2]
+      if (shouldAskForSeason(category)) {
+        ctx.editMessageText(`You selected ${category}, choose season for this media.`, {
+          reply_markup: Markup.inlineKeyboard(mkSeasonButtons(category, identifier, 0, 8), { columns: 3 }).reply_markup //TODO: Add support for more seasons
+        })
+      } else {
+        const work = state.pendingDownloads.get(identifier)
+        if (!R.isNil(work)) {
+          ctx.editMessageText(`You selected category ${category}.`)
+          console.log("Starting pending download", identifier)
+          await (category === "Others" ? work(constants.defaultMediaCategory) : work(category))
+        } else {
+          console.warn("Couldn't find the pending download", identifier);
+        }
+      }
+    } else if (callbackType == "SEASON_SELECTED") {
+      const splitArr = R.split("_", callbackQuery)
+      const season = parseInt(splitArr[1])
+      const category = splitArr[2]
+      const identifier = splitArr[3]
       const work = state.pendingDownloads.get(identifier)
-      ctx.editMessageText(`You selected category ${category}.`)
       if (!R.isNil(work)) {
+        ctx.editMessageText(`You selected Category ${category} and ` + (season === 0 ? 'Specials.' : `Season ${season}.`))
         console.log("Starting pending download", identifier)
-        await (category === "Others" ? work(constants.defaultMediaCategory) : work(category))
+        await (category === "Others" ? work(constants.defaultMediaCategory, season) : work(category, season))
       } else {
         console.warn("Couldn't find the pending download", identifier);
       }

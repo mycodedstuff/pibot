@@ -11,7 +11,7 @@ export const initServer = (port: number, awaitingCode: (sever: Server, code: str
   })
 
   app.post("/", multerInstance.none(), (req, res) => {
-    if (req.body.code) {
+    if (req.body?.code) {
       res.sendStatus(200)
       awaitingCode(server, req.body.code)
     } else {
