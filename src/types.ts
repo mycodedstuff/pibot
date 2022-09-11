@@ -25,3 +25,8 @@ export type PiState = {
 export type CallbackType = 'REFRESH_DOWNLOAD' | 'NAVIGATE_PAGE' | 'CATEGORY_SELECTED' | 'SEASON_SELECTED'
 
 export type DownloadStatus = 'STARTING' | 'DOWNLOADING' | 'COMPLETED' | 'CANCELED' | 'ERRORED'
+
+export type MessageFilter = {
+  ids: number[],
+  limit: number
+}

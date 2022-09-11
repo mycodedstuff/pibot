@@ -5,20 +5,22 @@ import mime from "mime-types"
 import path from "path"
 import fs from "fs"
 import { Config } from "../config/config";
-import { CallbackType, Download, DownloadStatus, PiState } from "../types";
+import { CallbackType, Download, DownloadStatus, MessageFilter, PiState } from "../types";
 import bytes from "bytes";
 import { Markup } from "telegraf";
 import * as constants from "../config/constants"
 import sanitize from "sanitize-filename"
+import { EntityLike } from "telegram/define";
 
 // Get original message using username and msg id
-export const getMessage = async (client: TelegramClient, username: string, msgId: number) => {
-  if (!R.isNil(client)) {
-    console.log(`Fetching message ${msgId} from ${username}`);
+export const getMessage = async (client: TelegramClient, username: EntityLike, filter: MessageFilter) => {
+  if (!R.isNil(client) && client.connected) {
+    console.log(`Fetching message ${filter.ids} from ${username}`);
     const messages = await client.getMessages(username, {
-      ids: msgId
+      ids: filter.ids,
+      limit: filter.limit
     })
-    return messages.length > 0 ? messages[0] : null
+    return messages
   } else {
     return null
   }
@@ -55,7 +57,7 @@ export const getMessageMetadata = (message: Message.CommonMessage) => {
 }
 
 // Get where message came from title if Channel / first + last name if User else username
-const getMsgOriginName = (message: Message.CommonMessage) => {
+export const getMsgOriginName = (message: Message.CommonMessage) => {
   let senderName: string | undefined
   if (message.forward_from_chat) {
     senderName = R.path(["title"], message.forward_from_chat)
@@ -75,16 +77,6 @@ export const mkDownloadPath = (config: Config, category: string, season: number 
   const downloadPath = path.normalize(path.join(config.downloadDir, category, sanitize(channelName, { replacement: ' ' }).replace(/\s{2,}/, ' '), seasonDir))
   if (!fs.existsSync(downloadPath)) fs.mkdirSync(downloadPath, { recursive: true })
   return path.join(downloadPath, fileName)
-}
-
-// Search for a message within this given username channel
-export const findMediaMessage = async (client: TelegramClient, messageContent: string, userName: string, filter: Api.TypeMessagesFilter) => {
-  const msgs = await client.getMessages(userName, {
-    search: messageContent,
-    filter: filter,
-    limit: 1
-  })
-  return !R.isNil(msgs) && Array.isArray(msgs) ? msgs[0] : null
 }
 
 export const constructDownloadList = (state: PiState, currentPageNo: number) => {

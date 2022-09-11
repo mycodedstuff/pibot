@@ -4,7 +4,7 @@ import { Context, Markup } from "telegraf";
 import { Api } from "telegram";
 import * as R from "ramda"
 import { Download, PiState } from "../types";
-import { findMediaMessage, getMediaMetadata, getMessage, getMessageMetadata, mkDownloadPath, mkMediaCategoryButtons, findCategory, mkSeasonButtons, shouldAskForSeason } from "./utils";
+import { getMediaMetadata, getMessage, getMessageMetadata, mkDownloadPath, mkMediaCategoryButtons, findCategory, mkSeasonButtons, shouldAskForSeason, getMsgOriginName } from "./utils";
 import { Message } from "telegraf/typings/core/types/typegram";
 import * as uuid from "uuid"
 import * as constants from "../config/constants"
@@ -34,68 +34,64 @@ const downloadMediaFromMessage = async (state: PiState, ctx: Context, message: M
   if (!message.via_bot) {
     const msgId = message.message_id
     console.log("Fetching media via client", JSON.stringify(message));
-    const msgMetadata = getMessageMetadata(message)
-    if (R.isNil(msgMetadata.orgMsgId) || R.isNil(msgMetadata.orgMsgUserName)) {
-      console.log("Couldn't find msg details", msgId);
-      return void ctx.reply("Couldn't find message details.", {
-        reply_to_message_id: msgId
+    if (!R.isNil(message.forward_from_chat)) {
+      const messages = await getMessage(state.client, message.forward_from_chat.id, {
+        ids: [message.forward_from_message_id] as any as number[],
+        limit: 1
       })
-    }
-    let tgMsg = await getMessage(state.client, msgMetadata.orgMsgUserName, msgMetadata.orgMsgId)
-    if (R.isNil(tgMsg)) {
-      if (message.caption && state.bot.botInfo?.username) {
-        console.log("Using search method to find message", msgId);
-        tgMsg = await findMediaMessage(state.client, message.caption, state.bot.botInfo.username, new Api.InputMessagesFilterVideo())
+      let tgMsg = R.isNil(messages) ? null : messages[0]
+      if (R.isNil(tgMsg)) {
+        console.log("Couldn't find the msg with id", msgId, R.path(["title"], message.forward_from_chat));
+        return void ctx.reply("Couldn't find the original message.", {
+          reply_to_message_id: msgId
+        })
+      } else {
+        console.log("Original Message => ", JSON.stringify(tgMsg));
       }
-    }
-    if (R.isNil(tgMsg)) {
-      console.log("Couldn't find the msg with id", msgMetadata.orgMsgId, msgMetadata.orgMsgUserName);
-      return void ctx.reply("Couldn't find the original message.", {
-        reply_to_message_id: msgId
-      })
-    }
-    const mediaMetadata = R.has("video", message) ? getMediaMetadata(message.video) : getMediaMetadata(message.document)
-    const mediaDir = sanitize(msgMetadata.orgMsgOriginName || "pi_media", { replacement: ' ' }).replace(/\s{2,}/, ' ')
-    const work: MessageDownloadFn = (tgMsg: Api.Message, categorySelectedMsg?: Message.TextMessage, identifier?: string) => {
-      const mediaDownloader = async (category: string, season?: number, timeout?: boolean) => {
-        let shouldStartDownload = R.isNil(identifier)
-        if (identifier) shouldStartDownload = state.pendingDownloads.delete(identifier)
-        if (shouldStartDownload) {
-          if (timeout) console.log("Media selection timed out", identifier)
-          const filePath = mkDownloadPath(state.config, category, season, mediaDir, mediaMetadata.fileName)
-          await downloadMedia(ctx, msgId, tgMsg, state.downloads, filePath, mediaMetadata.fileSize, force)
+      const orgMsgOriginName = getMsgOriginName(message);
+      const mediaMetadata = R.has("video", message) ? getMediaMetadata(message.video) : getMediaMetadata(message.document)
+      const mediaDir = sanitize(orgMsgOriginName || "pi_media", { replacement: ' ' }).replace(/\s{2,}/, ' ')
+      const work: MessageDownloadFn = (tgMsg: Api.Message, categorySelectedMsg?: Message.TextMessage, identifier?: string) => {
+        const mediaDownloader = async (category: string, season?: number, timeout?: boolean) => {
+          let shouldStartDownload = R.isNil(identifier)
+          if (identifier) shouldStartDownload = state.pendingDownloads.delete(identifier)
+          if (shouldStartDownload) {
+            if (timeout) console.log("Media selection timed out", identifier)
+            const filePath = mkDownloadPath(state.config, category, season, mediaDir, mediaMetadata.fileName)
+            await downloadMedia(ctx, msgId, tgMsg, state.downloads, filePath, mediaMetadata.fileSize, force)
+          }
         }
+        if (identifier) {
+          setTimeout((_: any) => {
+            setTimeout((_: any) => {
+              if (categorySelectedMsg && ctx.chat?.id)
+                state.bot.telegram.deleteMessage(ctx.chat.id, categorySelectedMsg.message_id)
+            }, state.config.categoryMessageTime)
+            return mediaDownloader(constants.defaultMediaCategory, undefined, true)
+          }, state.config.categorySelectionTimeout)
+        }
+        return mediaDownloader
       }
-      if (identifier) {
-        setTimeout(_ => {
-          setTimeout(_ => {
-            if (categorySelectedMsg && ctx.chat?.id)
-              state.bot.telegram.deleteMessage(ctx.chat.id, categorySelectedMsg.message_id)
-          }, state.config.categoryMessageTime)
-          return mediaDownloader(constants.defaultMediaCategory, undefined, true)
-        }, state.config.categorySelectionTimeout)
-      }
-      return mediaDownloader
-    }
-    const identifier = uuid.v4()
-    const mediaCategory = findCategory(state.config, mediaDir)
-    if (state.config.enabledMediaCategories) {
-      if (R.isNil(mediaCategory)) {
-        const chooseCategoryMsg = await askCategory(state, ctx, msgId, tgMsg, identifier, work)
-        console.log("Adding media to pending downloads", identifier)
-        state.pendingDownloads.set(identifier, work(tgMsg, chooseCategoryMsg, identifier))
-      } else if (shouldAskForSeason(mediaCategory)) {
-        const askSeasonMsg = await askSeason(ctx, msgId, mediaCategory, identifier)
-        console.log("Adding media to pending downloads", identifier)
-        state.pendingDownloads.set(identifier, work(tgMsg, askSeasonMsg, identifier))
+      const identifier = uuid.v4()
+      const mediaCategory = findCategory(state.config, mediaDir)
+      if (state.config.enabledMediaCategories) {
+        if (R.isNil(mediaCategory)) {
+          const chooseCategoryMsg = await askCategory(state, ctx, msgId, tgMsg, identifier, work)
+          console.log("Adding media to pending downloads", identifier)
+          state.pendingDownloads.set(identifier, work(tgMsg, chooseCategoryMsg, identifier))
+        } else if (shouldAskForSeason(mediaCategory)) {
+          const askSeasonMsg = await askSeason(ctx, msgId, mediaCategory, identifier)
+          console.log("Adding media to pending downloads", identifier)
+          state.pendingDownloads.set(identifier, work(tgMsg, askSeasonMsg, identifier))
+        } else {
+          await work(tgMsg)(mediaCategory ?? '')
+        }
       } else {
         await work(tgMsg)(mediaCategory ?? '')
       }
     } else {
-      await work(tgMsg)(mediaCategory ?? '')
+      console.log("Ignoring message sent via bot", JSON.stringify(message));
     }
-  } else {
-    console.log("Ignoring message sent via bot", JSON.stringify(message));
   }
 }
 

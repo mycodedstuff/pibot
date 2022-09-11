@@ -247,7 +247,7 @@ const stopPiBot = (reason?: string) => {
     if (!client.disconnected) client.disconnect()
     bot.stop(reason)
     ngrok.kill()
-    setTimeout(_ => process.exit(), 1000)
+    setTimeout((_: any) => process.exit(), 1000)
   }
 }
 

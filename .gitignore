@@ -3,5 +3,5 @@ node_modules/
 session_name/
 build/*
 .DS_Store
-package-lock.json
 .vscode
+downloads/
