@@ -11,6 +11,7 @@ import { Markup } from "telegraf";
 import * as constants from "../config/constants"
 import sanitize from "sanitize-filename"
 import { EntityLike } from "telegram/define";
+import episodeParser from "episode-parser";
 
 // Get original message using username and msg id
 export const getMessage = async (client: TelegramClient, username: EntityLike, filter: MessageFilter) => {
@@ -37,22 +38,6 @@ export const getMediaMetadata = (media: Video | Document) => {
     fileId: media.file_id,
     fileName: media.file_name || path.format({ name: media.file_id, ext: extension }),
     fileSize: media.file_size
-  }
-}
-
-// Get's metadata of a telegram message
-//TODO: Should it only be written assuming message is always forwarded?
-export const getMessageMetadata = (message: Message.CommonMessage) => {
-  // Message Id of message if forwarded then from original channel/user else bot
-  let msgId = message.forward_from_message_id
-  // Username of channel/user this media is residing in
-  let msgUserName = R.path(["username"], message.forward_from_chat) as string | undefined || message.forward_from?.username || message.from?.username
-  let msgOriginName = getMsgOriginName(message) || msgUserName
-
-  return {
-    orgMsgId: msgId,
-    orgMsgUserName: msgUserName,
-    orgMsgOriginName: msgOriginName
   }
 }
 
@@ -205,4 +190,15 @@ export const mkSeasonButtons = (category: string, identifier: string, start: num
 
 export const shouldAskForSeason = (category: string) => {
   return ["Anime", "Series"].indexOf(category) !== -1
+}
+
+export const parseSeasonNumber = (fileName: string) => {
+  const mediaInfo = episodeParser(fileName)
+  console.log(`Media info of ${fileName}`, JSON.stringify(mediaInfo));
+  if (!R.isNil(mediaInfo)) {
+    if (R.isNil(mediaInfo.episode) || fileName.indexOf(mediaInfo.season + '' + mediaInfo.episode) === -1) {
+      return mediaInfo?.season
+    }
+  }
+  return null
 }

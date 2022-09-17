@@ -4,7 +4,7 @@ import { Context, Markup } from "telegraf";
 import { Api } from "telegram";
 import * as R from "ramda"
 import { Download, PiState } from "../types";
-import { getMediaMetadata, getMessage, getMessageMetadata, mkDownloadPath, mkMediaCategoryButtons, findCategory, mkSeasonButtons, shouldAskForSeason, getMsgOriginName } from "./utils";
+import { getMediaMetadata, getMessage, mkDownloadPath, mkMediaCategoryButtons, findCategory, mkSeasonButtons, shouldAskForSeason, getMsgOriginName, parseSeasonNumber } from "./utils";
 import { Message } from "telegraf/typings/core/types/typegram";
 import * as uuid from "uuid"
 import * as constants from "../config/constants"
@@ -51,6 +51,7 @@ const downloadMediaFromMessage = async (state: PiState, ctx: Context, message: M
       const orgMsgOriginName = getMsgOriginName(message);
       const mediaMetadata = R.has("video", message) ? getMediaMetadata(message.video) : getMediaMetadata(message.document)
       const mediaDir = sanitize(orgMsgOriginName || "pi_media", { replacement: ' ' }).replace(/\s{2,}/, ' ')
+
       const work: MessageDownloadFn = (tgMsg: Api.Message, categorySelectedMsg?: Message.TextMessage, identifier?: string) => {
         const mediaDownloader = async (category: string, season?: number, timeout?: boolean) => {
           let shouldStartDownload = R.isNil(identifier)
@@ -72,17 +73,24 @@ const downloadMediaFromMessage = async (state: PiState, ctx: Context, message: M
         }
         return mediaDownloader
       }
+
       const identifier = uuid.v4()
       const mediaCategory = findCategory(state.config, mediaDir)
+      
       if (state.config.enabledMediaCategories) {
         if (R.isNil(mediaCategory)) {
           const chooseCategoryMsg = await askCategory(state, ctx, msgId, tgMsg, identifier, work)
           console.log("Adding media to pending downloads", identifier)
           state.pendingDownloads.set(identifier, work(tgMsg, chooseCategoryMsg, identifier))
         } else if (shouldAskForSeason(mediaCategory)) {
-          const askSeasonMsg = await askSeason(ctx, msgId, mediaCategory, identifier)
-          console.log("Adding media to pending downloads", identifier)
-          state.pendingDownloads.set(identifier, work(tgMsg, askSeasonMsg, identifier))
+          const seasonNo = parseSeasonNumber(mediaMetadata.fileName)
+          if (R.isNil(seasonNo)) {
+            const askSeasonMsg = await askSeason(ctx, msgId, mediaCategory, identifier)
+            console.log("Adding media to pending downloads", identifier)
+            state.pendingDownloads.set(identifier, work(tgMsg, askSeasonMsg, identifier))
+          } else {
+            await work(tgMsg)(mediaCategory, seasonNo)
+          }
         } else {
           await work(tgMsg)(mediaCategory ?? '')
         }
