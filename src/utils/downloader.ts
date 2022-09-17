@@ -118,10 +118,10 @@ const downloadMedia = async (ctx: Context, msgId: number, msg: Api.Message, down
       await msg.downloadMedia({
         progressCallback: (progress) => {
           if (fileSize) {
-            const percentage = parseFloat(((progress / fileSize) * 100).toFixed(2))
+            const percentage = parseFloat(((progress.toJSNumber() / fileSize) * 100).toFixed(2))
             download.percentage = percentage
           }
-          download.downloadedTillNow = progress
+          download.downloadedTillNow = progress.toJSNumber()
           download.status = 'DOWNLOADING'
         },
         outputFile: filePath
