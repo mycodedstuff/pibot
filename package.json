@@ -12,15 +12,16 @@
   "license": "ISC",
   "dependencies": {
     "@types/bytes": "3.1.1",
-    "@types/express": "4.17.13",
+    "@types/express": "4.17.14",
     "@types/mime-types": "2.1.1",
     "@types/multer": "1.4.7",
-    "@types/node": "17.0.24",
-    "@types/ramda": "0.28.11",
+    "@types/node": "18.7.18",
+    "@types/ramda": "0.28.15",
     "@types/sqlite3": "3.1.8",
     "@types/uuid": "8.3.4",
     "axios": "0.27.2",
     "bytes": "3.1.2",
+    "core-js": "^3.25.2",
     "episode-parser": "^2.0.2",
     "express": "4.18.1",
     "input": "1.0.1",
@@ -31,7 +32,7 @@
     "sanitize-filename": "1.6.3",
     "sqlite3": "5.1.1",
     "telegraf": "4.9.2",
-    "telegram": "2.11.5",
+    "telegram": "2.11.7",
     "typescript": "4.8.3",
     "uuid": "9.0.0"
   }
