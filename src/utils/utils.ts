@@ -14,10 +14,10 @@ import { EntityLike } from "telegram/define";
 import episodeParser from "episode-parser";
 
 // Get original message using username and msg id
-export const getMessage = async (client: TelegramClient, username: EntityLike, filter: MessageFilter) => {
+export const getMessage = async (client: TelegramClient, userId: EntityLike, filter: MessageFilter) => {
   if (!R.isNil(client) && client.connected) {
-    console.log(`Fetching message ${filter.ids} from ${username}`);
-    const messages = await client.getMessages(username, {
+    console.log(`Fetching message ${filter.ids} from ${userId}`);
+    const messages = await client.getMessages(userId, {
       ids: filter.ids,
       limit: filter.limit
     })

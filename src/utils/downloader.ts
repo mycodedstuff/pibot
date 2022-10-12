@@ -35,7 +35,7 @@ const downloadMediaFromMessage = async (state: PiState, ctx: Context, message: M
     const msgId = message.message_id
     console.log("Fetching media via client", JSON.stringify(message));
     if (!R.isNil(message.forward_from_chat)) {
-      const messages = await getMessage(state.client, message.forward_from_chat.id, {
+      const messages = await getMessage(state.client, R.path(['username'], message.forward_from_chat) || message.forward_from_chat.id, {
         ids: [message.forward_from_message_id] as any as number[],
         limit: 1
       })
