@@ -1,5 +1,6 @@
 # <image src="./assets/logo.jpg" width=24> PiBot
 
+[![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
 [![MPL-2.0 license](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](https://github.com/mycodedstuff/mExport/blob/master/LICENSE)
 ![Version](https://img.shields.io/badge/version-v1.0.0-blue)
 [![CodeQL](https://github.com/mycodedstuff/pibot/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/mycodedstuff/pibot/actions/workflows/codeql-analysis.yml)
